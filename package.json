@@ -1,0 +1,28 @@
+{
+  "name": "cagnotte",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A cashback app and the back office behind it: offers, activations, the settlement of affiliate-network transactions into a ledger that reconciles to the cent, claims and payouts.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter './packages/**' --filter @cagnotte/api build",
+    "build:web": "pnpm --filter @cagnotte/mobile build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.19.1",
+    "eslint": "^10.14.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^4.1.12"
+  }
+}
