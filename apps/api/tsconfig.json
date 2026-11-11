@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "outDir": "dist",
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@cagnotte/domain": ["../../packages/domain/src/index.ts"],
+      "@cagnotte/postgres": ["../../packages/postgres/src/index.ts"],
+      "@cagnotte/postgres/*": ["../../packages/postgres/src/*"]
+    }
+  },
+  "include": ["src", "test", "vitest.config.ts"]
+}
