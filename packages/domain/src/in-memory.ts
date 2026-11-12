@@ -35,6 +35,13 @@ function paginate<T>(items: T[], query: PageQuery): Page<T> {
 const newestFirst = <T>(items: T[], at: (item: T) => Date, id: (item: T) => string): T[] =>
   [...items].sort((a, b) => at(b).getTime() - at(a).getTime() || id(b).localeCompare(id(a)));
 
+/** Case-insensitive byte order, which is what `order by lower(x)` gives in PostgreSQL. */
+export function byText(a: string, b: string): number {
+  const x = a.toLowerCase();
+  const y = b.toLowerCase();
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
 function replace<T extends { id: string }>(items: T[], item: T): void {
   const i = items.findIndex((x) => x.id === item.id);
   if (i < 0) throw new Error(`no row ${item.id} to update`);
@@ -82,7 +89,7 @@ export function inMemoryPortsCreator(initial: Partial<MemoryStore> = {}): { port
     merchants: {
       findById: async (id) => store.merchants.find((m) => m.id === id) ?? null,
       findBySlug: async (slug) => store.merchants.find((m) => m.slug === slug) ?? null,
-      list: async () => [...store.merchants].sort((a, b) => a.name.localeCompare(b.name)),
+      list: async () => [...store.merchants].sort((a, b) => byText(a.name, b.name) || byText(a.id, b.id)),
       insert: async (merchant) => {
         store.merchants.push(merchant);
       },
@@ -102,7 +109,7 @@ export function inMemoryPortsCreator(initial: Partial<MemoryStore> = {}): { port
         items.sort((a, b) => {
           if (filter.sort === "rate") return b.rateBps - a.rateBps || b.fixedCents - a.fixedCents || a.id.localeCompare(b.id);
           if (filter.sort === "newest") return b.createdAt.getTime() - a.createdAt.getTime() || b.id.localeCompare(a.id);
-          return a.title.localeCompare(b.title) || a.id.localeCompare(b.id);
+          return byText(a.title, b.title) || byText(a.id, b.id);
         });
         return paginate(items, filter);
       },
@@ -284,7 +291,7 @@ export function inMemoryPortsCreator(initial: Partial<MemoryStore> = {}): { port
           if (cb && cb.status !== "refused") line.cashbackCents += cb.amountCents;
           lines.set(t.merchantId, line);
         }
-        return [...lines.values()].sort((a, b) => b.commissionCents - a.commissionCents || a.merchantName.localeCompare(b.merchantName));
+        return [...lines.values()].sort((a, b) => b.commissionCents - a.commissionCents || byText(a.merchantName, b.merchantName));
       },
       validatedCentsBetween: async (from, to) =>
         store.cashbacks
