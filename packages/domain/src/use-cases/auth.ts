@@ -1,7 +1,7 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import type { Actor, PublicUser, Referral, Session, User } from "../entities.js";
 import { hashPassword, passwordProblems, verifyPassword } from "../password.js";
-import type { Deps } from "../ports.js";
+import type { Deps, Ports } from "../ports.js";
 import { fail, ok, type Result } from "../result.js";
 
 /*
@@ -61,11 +61,13 @@ export function codeStem(displayName: string): string {
 export function authUseCasesCreator(deps: Deps) {
   const { ports, unitOfWork, clock, ids, sessionHours } = deps;
 
-  async function openSession(userId: string): Promise<{ token: string; session: Session }> {
+  // Takes the ports to write with: inside a unit of work that must be the transaction's own, never
+  // the outer ones, or a single-connection database (PGlite) waits on itself forever.
+  async function openSession(on: Ports, userId: string): Promise<{ token: string; session: Session }> {
     const token = ids.token(48);
     const now = clock.now();
     const session: Session = { id: sessionIdOf(token), userId, createdAt: now, expiresAt: new Date(now.getTime() + sessionHours * HOUR) };
-    await ports.sessions.insert(session);
+    await on.sessions.insert(session);
     return { token, session };
   }
 
@@ -122,7 +124,7 @@ export function authUseCasesCreator(deps: Deps) {
         };
         await tx.referrals.insert(referral);
       }
-      return openSession(user.id);
+      return openSession(tx, user.id);
     });
     return ok({ user: publicUser(user), token: out.token, expiresAt: out.session.expiresAt });
   };
@@ -131,7 +133,7 @@ export function authUseCasesCreator(deps: Deps) {
     const user = await ports.users.findByEmail(input.email.trim().toLowerCase());
     // The same answer whether the email or the password is wrong, so the form cannot probe for accounts.
     if (!user || !(await verifyPassword(input.password, user.passwordHash))) return fail("unauthorized", "wrong email or password");
-    const { token, session } = await openSession(user.id);
+    const { token, session } = await openSession(ports, user.id);
     return ok({ user: publicUser(user), token, expiresAt: session.expiresAt });
   };
 

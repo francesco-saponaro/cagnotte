@@ -4,12 +4,27 @@
     "rootDir": "../..",
     "outDir": "dist",
     "noEmit": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "paths": {
-      "@cagnotte/domain": ["../../packages/domain/src/index.ts"],
-      "@cagnotte/postgres": ["../../packages/postgres/src/index.ts"],
-      "@cagnotte/postgres/*": ["../../packages/postgres/src/*"]
+      "@cagnotte/domain": [
+        "../../packages/domain/src/index.ts"
+      ],
+      "@cagnotte/postgres": [
+        "../../packages/postgres/src/index.ts"
+      ],
+      "@cagnotte/postgres/*": [
+        "../../packages/postgres/src/*"
+      ],
+      "@cagnotte/contracts": [
+        "../../packages/contracts/src/index.ts"
+      ]
     }
   },
-  "include": ["src", "test", "vitest.config.ts"]
+  "include": [
+    "src",
+    "test",
+    "vitest.config.ts"
+  ]
 }

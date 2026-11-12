@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { connectPglite } from "@cagnotte/postgres";
-import { buildApp } from "../src/app.js";
+import { buildApp } from "../src/http/app.js";
 
 describe("the server", () => {
   let app: ReturnType<typeof buildApp>;
@@ -9,7 +9,7 @@ describe("the server", () => {
   beforeAll(async () => {
     const conn = await connectPglite();
     close = conn.close;
-    app = buildApp({ db: conn.db, webOrigin: null });
+    app = buildApp({ db: conn.db, webOrigin: null, sessionHours: 72 });
     await app.ready();
   });
   afterAll(async () => {

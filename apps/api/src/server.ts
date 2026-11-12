@@ -1,5 +1,5 @@
 import { connect, generateSeed, seedDatabase } from "@cagnotte/postgres";
-import { buildApp } from "./app.js";
+import { buildApp } from "./http/app.js";
 import { readConfig } from "./config.js";
 
 const config = readConfig();
@@ -8,7 +8,7 @@ if (config.seedOnStart) {
   await seedDatabase(db, await generateSeed());
   console.log("seed loaded");
 }
-const app = buildApp({ db, webOrigin: config.webOrigin });
+const app = buildApp({ db, webOrigin: config.webOrigin, sessionHours: config.sessionHours });
 await app.listen({ port: config.port, host: config.host });
 console.log(`api listening on http://${config.host}:${config.port}`);
 
