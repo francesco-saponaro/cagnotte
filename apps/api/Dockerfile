@@ -3,6 +3,7 @@ RUN corepack enable
 WORKDIR /repo
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY packages/domain/package.json packages/domain/
+COPY packages/contracts/package.json packages/contracts/
 COPY packages/postgres/package.json packages/postgres/
 COPY apps/api/package.json apps/api/
 COPY apps/mobile/package.json apps/mobile/
@@ -10,7 +11,7 @@ RUN pnpm install --frozen-lockfile
 COPY tsconfig.base.json ./
 COPY packages ./packages
 COPY apps/api ./apps/api
-RUN pnpm --filter @cagnotte/domain --filter @cagnotte/postgres --filter @cagnotte/api build
+RUN pnpm --filter @cagnotte/domain --filter @cagnotte/contracts --filter @cagnotte/postgres --filter @cagnotte/api build
 
 FROM node:22-alpine
 WORKDIR /repo
