@@ -4,7 +4,7 @@ A cashback app and the back office behind it. Members activate merchant offers, 
 
 The part I care most about is the settlement pipeline: matching a network's transactions to the activations behind them, computing each cashback by the rules of the offer at activation time, and keeping a double-entry ledger that reconciles to the cent through validations, reversals, claims, referral bonuses and payouts.
 
-This is the first evening of six. What exists today is the plan, the data model, the seed and the two package skeletons; the API, the pipeline and the screens follow over the week. The sections below are filled in as the parts land.
+This is the second evening of six. What exists today is the data model and the seed, the rules and use cases, and the API with every route but the settlement pipeline's; the pipeline and the screens follow over the week. The sections below are filled in as the parts land.
 
 ## Live demo
 
@@ -31,11 +31,24 @@ pnpm build
 
 The database comes up with the seed loaded: about 17,000 rows of six months of activity, generated from a fixed seed so every run is the same. Demo accounts: `marie@example.com` (member), `sam@example.com` (support agent), `nadia@example.com` (operations manager), all with the password `cagnotte-demo`.
 
+## The API
+
+The server starts on `http://localhost:3001` (`pnpm -C apps/api dev` by hand, or with `docker compose up`). Sign in, then send the token as a bearer header:
+
+```
+curl -s localhost:3001/auth/sign-in -H 'content-type: application/json' \
+  -d '{"email":"marie@example.com","password":"cagnotte-demo"}'
+curl -s localhost:3001/me/wallet -H "authorization: Bearer $TOKEN"
+```
+
+Every route, its role and its errors are in `docs/api.md`. Three roles: a member sees only their own data; an agent also works the claims queue; a manager also runs payouts, decisions, the catalogue and the reports. A wallet is the sum of its ledger entries, computed on each request; there is no balance column to drift.
+
 ## Layout
 
 ```
-packages/domain     the rules: money, rates, state machines, the settlement pipeline, the ledger; no framework, no database
-packages/postgres   the Drizzle schema, migrations, seed generator and repository adapters (PostgreSQL or PGlite)
+packages/domain     the rules: money, rates, state machines, the use cases, the ledger; ports as interfaces; no framework, no database
+packages/contracts  the request schemas (zod), shared by the API and the app's forms
+packages/postgres   the Drizzle schema, migrations, seed generator and the ports over PostgreSQL or PGlite
 apps/api            the Fastify server, the only place HTTP exists
 apps/mobile         the Expo app for iOS, Android and the web; the web export is the demo
 docs/               architecture, domain, API, decision records, screenshots
@@ -57,4 +70,4 @@ Real: the database, the migrations, the sign-in, the rules, the ledger. Simulate
 
 ## Status
 
-Evening 1 of 6. See `CHANGELOG.md`.
+Evening 2 of 6. See `CHANGELOG.md`.
