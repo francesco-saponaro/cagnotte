@@ -36,7 +36,7 @@ export interface CreateOfferInput {
   endsAt: Date | null;
 }
 
-export type UpdateOfferInput = Partial<Omit<CreateOfferInput, "merchantId">>;
+export type UpdateOfferInput = { [K in keyof Omit<CreateOfferInput, "merchantId">]?: CreateOfferInput[K] | undefined };
 
 export interface AddBoostInput {
   rateBps: number;
@@ -109,7 +109,8 @@ export function catalogueUseCasesCreator(deps: Deps) {
       if (!found) return notFound("offer");
       if (found.status === "ended") return fail("conflict", "an ended offer cannot be changed");
       const { merchant: _merchant, ...current } = found;
-      const updated: Offer = { ...current, ...input, title: (input.title ?? current.title).trim(), updatedAt: clock.now() };
+      const changes = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));
+      const updated: Offer = { ...current, ...changes, title: (input.title ?? current.title).trim(), updatedAt: clock.now() };
       const problem = offerProblems(updated);
       if (problem) return fail("invalid", problem);
       await tx.offers.update(updated);
