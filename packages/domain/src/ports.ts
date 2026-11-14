@@ -5,10 +5,13 @@ import type {
   CashbackStatus,
   Claim,
   ClaimStatus,
+  ImportBatch,
   LedgerBucket,
   LedgerEntry,
   LedgerKind,
+  MatchStatus,
   Merchant,
+  Network,
   NetworkTransaction,
   Offer,
   OfferBoost,
@@ -69,6 +72,15 @@ export interface MerchantRepository {
   findBySlug(slug: string): Promise<Merchant | null>;
   list(): Promise<Merchant[]>;
   insert(merchant: Merchant): Promise<void>;
+  /** The merchant a network's export row names: how an advertiser reference becomes a merchant. */
+  findByAdvertiser(network: Network, advertiserRef: string): Promise<Merchant | null>;
+}
+
+/** A user as a joined row shows them: enough to name them, never the password hash. */
+export interface Member {
+  id: string;
+  email: string;
+  displayName: string;
 }
 
 export type OfferSort = "rate" | "newest" | "name";
@@ -100,6 +112,10 @@ export interface ActivationRepository {
   listByUser(userId: string, page: PageQuery): Promise<Page<Activation & { offer: OfferWithMerchant }>>;
   /** The member's latest activation of the offer at or before `at`, the one a claim must point at. */
   latestBefore(userId: string, offerId: string, at: Date): Promise<Activation | null>;
+  /** The activation a tracking link carried, with its offer: what a network transaction's subId names. */
+  findBySubId(subId: string): Promise<(Activation & { offer: OfferWithMerchant }) | null>;
+  /** Every click at the merchant in `[from, to]`, oldest first, with the offer and the member: the proposals for a manual match. */
+  atMerchantBetween(merchantId: string, from: Date, to: Date): Promise<(Activation & { offer: OfferWithMerchant; member: Member })[]>;
 }
 
 export interface CashbackFilter extends PageQuery {
@@ -116,6 +132,12 @@ export interface CashbackRepository {
   update(cashback: Cashback): Promise<void>;
   countByStatus(status: CashbackStatus): Promise<number>;
   sumByStatus(status: CashbackStatus): Promise<number>;
+  findByActivation(activationId: string): Promise<Cashback | null>;
+  findByTransaction(transactionId: string): Promise<Cashback | null>;
+  /** True when the member already has a validated cashback at the merchant: they are not a new customer there. */
+  hasValidatedAt(userId: string, merchantId: string): Promise<boolean>;
+  /** The member's validated cashback from the networks, claims excluded: the base of the referral threshold. */
+  validatedCentsOf(userId: string): Promise<number>;
 }
 
 export interface ClaimFilter extends PageQuery {
@@ -126,7 +148,7 @@ export interface ClaimFilter extends PageQuery {
   q?: string;
 }
 
-export type ClaimWithOffer = Claim & { offer: OfferWithMerchant; member: { id: string; email: string; displayName: string } };
+export type ClaimWithOffer = Claim & { offer: OfferWithMerchant; member: Member };
 
 export interface ClaimRepository {
   findById(id: string): Promise<ClaimWithOffer | null>;
@@ -152,7 +174,7 @@ export interface PayoutFilter extends PageQuery {
   status?: PayoutStatus;
 }
 
-export type PayoutWithMember = Payout & { member: { id: string; email: string; displayName: string } };
+export type PayoutWithMember = Payout & { member: Member };
 
 export interface PayoutRepository {
   findById(id: string): Promise<Payout | null>;
@@ -170,9 +192,30 @@ export interface ReferralRepository {
   update(referral: Referral): Promise<void>;
 }
 
+export interface ImportBatchRepository {
+  findById(id: string): Promise<ImportBatch | null>;
+  list(page: PageQuery): Promise<Page<ImportBatch>>;
+  insert(batch: ImportBatch): Promise<void>;
+  update(batch: ImportBatch): Promise<void>;
+}
+
+export interface TransactionFilter extends PageQuery {
+  matchStatus?: MatchStatus;
+  network?: Network;
+  merchantId?: string;
+  batchId?: string;
+}
+
+export type TransactionWithMerchant = NetworkTransaction & { merchant: Merchant };
+
 export interface NetworkTransactionRepository {
-  findById(id: string): Promise<NetworkTransaction | null>;
-  countByMatch(status: NetworkTransaction["matchStatus"]): Promise<number>;
+  findById(id: string): Promise<TransactionWithMerchant | null>;
+  /** The network's own reference is the key for deduplication across files. */
+  findByRef(network: Network, networkRef: string): Promise<NetworkTransaction | null>;
+  list(filter: TransactionFilter): Promise<Page<TransactionWithMerchant>>;
+  insert(transaction: NetworkTransaction): Promise<void>;
+  update(transaction: NetworkTransaction): Promise<void>;
+  countByMatch(status: MatchStatus): Promise<number>;
 }
 
 export interface AuditFilter extends PageQuery {
@@ -200,6 +243,16 @@ export interface ReportRepository {
   margin(from: Date, to: Date): Promise<MarginLine[]>;
   /** The cashback validated in the window (by `validatedAt`), in cents. */
   validatedCentsBetween(from: Date, to: Date): Promise<number>;
+  /** The whole book, every member together, by bucket. */
+  bucketTotals(): Promise<Balances>;
+  /** Every entry of one kind, every member together. */
+  ledgerTotalByKind(kind: LedgerKind): Promise<number>;
+  /** Members with a bucket below zero, which must never happen. */
+  negativeBalances(): Promise<{ userId: string; bucket: LedgerBucket; amountCents: number }[]>;
+  /** Cashbacks whose entries do not net to what their status says, by id. */
+  cashbacksOutOfBalance(): Promise<string[]>;
+  /** Payouts whose entries do not net to what their status says, by id. */
+  payoutsOutOfBalance(): Promise<string[]>;
 }
 
 export interface Ports {
@@ -213,6 +266,7 @@ export interface Ports {
   ledger: LedgerRepository;
   payouts: PayoutRepository;
   referrals: ReferralRepository;
+  imports: ImportBatchRepository;
   transactions: NetworkTransactionRepository;
   audit: AuditRepository;
   reports: ReportRepository;

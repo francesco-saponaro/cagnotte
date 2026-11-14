@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Activation, AuditEntry, Cashback, Claim, LedgerEntry, Merchant, Offer, OfferBoost, Payout, Ports, Referral, Session, UnitOfWork, User } from "../src/index.js";
+import type { Activation, AuditEntry, Cashback, Claim, ImportBatch, LedgerEntry, Merchant, NetworkTransaction, Offer, OfferBoost, Payout, Ports, Referral, Session, UnitOfWork, User } from "../src/index.js";
 
 /*
  * The behaviour every implementation of the ports must have. The in-memory adapters run it here;
@@ -392,6 +392,108 @@ export function describePorts(name: string, create: () => Promise<PortsUnderTest
       it("counts the transactions by match status", async () => {
         expect(await p.transactions.countByMatch("unmatched")).toBe(0);
         expect(await p.transactions.findById("nope")).toBeNull();
+      });
+    });
+
+    describe("the settlement ports", () => {
+      const batch = (id: string, createdAt: Date): ImportBatch => ({ id, network: "linkpool", filename: `${id}.csv`, importedBy: "staff", status: "received", rowCount: 0, newCount: 0, updatedCount: 0, matchedCount: 0, unmatchedCount: 0, errorCount: 0, errors: [], createdAt, processedAt: null });
+      const transaction = (id: string, extra: Partial<NetworkTransaction> = {}): NetworkTransaction => ({
+        id,
+        batchId: "imp1",
+        network: "linkpool",
+        networkRef: `LP-${id}`,
+        subId: null,
+        orderRef: `ORD-${id}`,
+        merchantId: "m1",
+        orderedAt: at("2026-10-09T12:00:00Z"),
+        orderCents: 10000,
+        commissionCents: 800,
+        networkStatus: "pending",
+        reportedAt: at("2026-10-10T00:00:00Z"),
+        matchStatus: "unmatched",
+        activationId: null,
+        ignoreReason: null,
+        ...extra,
+      });
+
+      beforeAll(async () => {
+        await p.imports.insert(batch("imp1", at("2026-10-10T00:00:00Z")));
+        await p.imports.insert(batch("imp2", at("2026-10-11T00:00:00Z")));
+        await p.transactions.insert(transaction("t1", { subId: "suba100000000000", matchStatus: "matched", activationId: "a1", reportedAt: at("2026-10-10T00:00:00Z") }));
+        await p.transactions.insert(transaction("t2", { merchantId: "m2", network: "affinet", reportedAt: at("2026-10-10T01:00:00Z") }));
+        await p.transactions.insert(transaction("t3", { batchId: "imp2", matchStatus: "ignored", ignoreReason: "below_minimum", reportedAt: at("2026-10-11T00:00:00Z") }));
+      });
+
+      it("find a merchant by its advertiser reference on a network", async () => {
+        expect((await p.merchants.findByAdvertiser("linkpool", "adv-m2"))?.id).toBe("m2");
+        expect(await p.merchants.findByAdvertiser("affinet", "adv-m2")).toBeNull();
+      });
+
+      it("find an activation by subId with its offer, and the clicks at a merchant in a window with the member", async () => {
+        const named = await p.activations.findBySubId("suba200000000000");
+        expect(named?.id).toBe("a2");
+        expect(named?.offer.merchant.id).toBe("m1");
+        expect(await p.activations.findBySubId("nope")).toBeNull();
+        const clicks = await p.activations.atMerchantBetween("m1", at("2026-10-06T00:00:00Z"), at("2026-10-09T10:00:00Z"));
+        expect(clicks.map((a) => a.id)).toEqual(["a2", "a4"]);
+        expect(clicks[1]?.member.email).toBe("Second@Example.com");
+        expect(clicks[0]?.offer.title).toBe("Alpha");
+      });
+
+      it("find a cashback by activation or transaction, and answer the new-customer and referral questions", async () => {
+        const c = (await p.cashbacks.findById("c2"))!;
+        await p.cashbacks.update({ ...c, activationId: "a3", networkTransactionId: "t1" });
+        expect((await p.cashbacks.findByActivation("a3"))?.id).toBe("c2");
+        expect(await p.cashbacks.findByActivation("a1")).toBeNull();
+        expect((await p.cashbacks.findByTransaction("t1"))?.id).toBe("c2");
+        expect(await p.cashbacks.findByTransaction("t2")).toBeNull();
+        expect(await p.cashbacks.hasValidatedAt("u1", "m2")).toBe(true);
+        expect(await p.cashbacks.hasValidatedAt("u1", "m1")).toBe(false);
+        expect(await p.cashbacks.hasValidatedAt("u2", "m1")).toBe(true);
+        await p.cashbacks.insert(cashback("c4", "u1", "o1", { status: "validated", amountCents: 250, decidedBy: "claim", createdAt: at("2026-10-09T00:00:00Z"), validatedAt: at("2026-10-09T00:00:00Z") }));
+        expect(await p.cashbacks.validatedCentsOf("u1")).toBe(700);
+        expect(await p.cashbacks.validatedCentsOf("u2")).toBe(300);
+        expect(await p.cashbacks.validatedCentsOf("nobody")).toBe(0);
+      });
+
+      it("list batches newest first and update one", async () => {
+        const page = await p.imports.list({ page: 1, pageSize: 10 });
+        expect(page.items.map((b) => b.id)).toEqual(["imp2", "imp1"]);
+        expect(page.total).toBe(2);
+        const b = (await p.imports.findById("imp1"))!;
+        await p.imports.update({ ...b, status: "processed", rowCount: 3, errors: [{ line: 2, message: "bad" }], processedAt: at("2026-10-10T00:01:00Z") });
+        expect(await p.imports.findById("imp1")).toMatchObject({ status: "processed", rowCount: 3, errors: [{ line: 2, message: "bad" }] });
+        expect(await p.imports.findById("nope")).toBeNull();
+      });
+
+      it("find a transaction by id with its merchant, by network reference, and list the queue with filters", async () => {
+        expect((await p.transactions.findById("t2"))?.merchant.name).toBe("Zed Tech");
+        expect((await p.transactions.findByRef("linkpool", "LP-t1"))?.id).toBe("t1");
+        expect(await p.transactions.findByRef("affinet", "LP-t1")).toBeNull();
+        const all = await p.transactions.list({ page: 1, pageSize: 10 });
+        expect(all.items.map((t) => t.id)).toEqual(["t3", "t2", "t1"]);
+        expect(all.total).toBe(3);
+        expect((await p.transactions.list({ matchStatus: "unmatched", page: 1, pageSize: 10 })).items.map((t) => t.id)).toEqual(["t2"]);
+        expect((await p.transactions.list({ network: "affinet", page: 1, pageSize: 10 })).items.map((t) => t.id)).toEqual(["t2"]);
+        expect((await p.transactions.list({ merchantId: "m1", page: 1, pageSize: 10 })).items.map((t) => t.id)).toEqual(["t3", "t1"]);
+        expect((await p.transactions.list({ batchId: "imp2", page: 1, pageSize: 10 })).items.map((t) => t.id)).toEqual(["t3"]);
+        expect(await p.transactions.countByMatch("ignored")).toBe(1);
+        const t = (await p.transactions.findById("t2"))!;
+        const { merchant: _m, ...row } = t;
+        await p.transactions.update({ ...row, matchStatus: "ignored", ignoreReason: "no_commission" });
+        expect((await p.transactions.findById("t2"))?.ignoreReason).toBe("no_commission");
+        await p.transactions.update(row);
+      });
+
+      it("recompute the whole book for the reconciliation", async () => {
+        await p.ledger.insert([{ ...entry("l6", "staff", "reserved", -100, at("2026-10-12T00:00:00Z")), kind: "payout_reserved", refType: "payout", refId: "p1" }, { ...entry("l7", "u1", "available", 2000, at("2026-10-12T00:00:00Z")), kind: "referral_bonus", refType: "referral", refId: "r1" }]);
+        expect(await p.reports.bucketTotals()).toEqual({ pending: 0, available: 3500, reserved: -100, paid: 0 });
+        expect(await p.reports.ledgerTotalByKind("referral_bonus")).toBe(2000);
+        expect(await p.reports.ledgerTotalByKind("payout_sent")).toBe(0);
+        expect(await p.reports.negativeBalances()).toEqual([{ userId: "staff", bucket: "reserved", amountCents: -100 }]);
+        // c1 is refused with no entries (nets to zero: fine); c2, c3 and c4 are validated with nothing in available.
+        expect(await p.reports.cashbacksOutOfBalance()).toEqual(["c2", "c3", "c4"]);
+        expect(await p.reports.payoutsOutOfBalance()).toEqual(["p1", "p2"]);
       });
     });
 

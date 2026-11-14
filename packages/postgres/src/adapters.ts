@@ -1,4 +1,4 @@
-import type { Balances, LedgerBucket, MarginLine, Page, PageQuery, Ports, UnitOfWork } from "@cagnotte/domain";
+import { cashbackNets, payoutNets, type Balances, type LedgerBucket, type MarginLine, type Page, type PageQuery, type Ports, type UnitOfWork } from "@cagnotte/domain";
 import { and, asc, count, desc, eq, gt, gte, ilike, lt, lte, or, sql, sum, type SQL } from "drizzle-orm";
 import type { Db } from "./db.js";
 import * as t from "./schema.js";
@@ -53,6 +53,7 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
       insert: async (merchant) => {
         await db.insert(t.merchants).values(merchant);
       },
+      findByAdvertiser: async (network, advertiserRef) => (await db.select().from(t.merchants).where(and(eq(t.merchants.network, network), eq(t.merchants.advertiserRef, advertiserRef))))[0] ?? null,
     },
     offers: {
       findById: async (id) => {
@@ -126,6 +127,20 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
             .orderBy(desc(t.activations.activatedAt), desc(t.activations.id))
             .limit(1)
         )[0] ?? null,
+      findBySubId: async (subId) => {
+        const row = (await db.select({ activation: { ...t.activations }, offer: offerColumns, merchant: merchantColumns }).from(t.activations).innerJoin(t.offers, eq(t.activations.offerId, t.offers.id)).innerJoin(t.merchants, eq(t.offers.merchantId, t.merchants.id)).where(eq(t.activations.subId, subId)))[0];
+        return row ? { ...row.activation, offer: { ...row.offer, merchant: row.merchant } } : null;
+      },
+      atMerchantBetween: (merchantId, from, to) =>
+        db
+          .select({ activation: { ...t.activations }, offer: offerColumns, merchant: merchantColumns, member: memberColumns })
+          .from(t.activations)
+          .innerJoin(t.offers, eq(t.activations.offerId, t.offers.id))
+          .innerJoin(t.merchants, eq(t.offers.merchantId, t.merchants.id))
+          .innerJoin(t.users, eq(t.activations.userId, t.users.id))
+          .where(and(eq(t.offers.merchantId, merchantId), gte(t.activations.activatedAt, from), lte(t.activations.activatedAt, to)))
+          .orderBy(asc(t.activations.activatedAt), asc(t.activations.id))
+          .then((rows) => rows.map((r) => ({ ...r.activation, offer: { ...r.offer, merchant: r.merchant }, member: r.member }))),
     },
     cashbacks: {
       findById: async (id) => {
@@ -157,6 +172,12 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
       },
       countByStatus: async (status) => (await db.select({ n: count() }).from(t.cashbacks).where(eq(t.cashbacks.status, status)))[0]?.n ?? 0,
       sumByStatus: async (status) => Number((await db.select({ s: sum(t.cashbacks.amountCents) }).from(t.cashbacks).where(eq(t.cashbacks.status, status)))[0]?.s ?? 0),
+      findByActivation: async (activationId) => (await db.select().from(t.cashbacks).where(eq(t.cashbacks.activationId, activationId)))[0] ?? null,
+      findByTransaction: async (transactionId) => (await db.select().from(t.cashbacks).where(eq(t.cashbacks.networkTransactionId, transactionId)))[0] ?? null,
+      hasValidatedAt: async (userId, merchantId) =>
+        ((await db.select({ n: count() }).from(t.cashbacks).innerJoin(t.offers, eq(t.cashbacks.offerId, t.offers.id)).where(and(eq(t.cashbacks.userId, userId), eq(t.cashbacks.status, "validated"), eq(t.offers.merchantId, merchantId))))[0]?.n ?? 0) > 0,
+      validatedCentsOf: async (userId) =>
+        Number((await db.select({ s: sum(t.cashbacks.amountCents) }).from(t.cashbacks).where(and(eq(t.cashbacks.userId, userId), eq(t.cashbacks.status, "validated"), sql`${t.cashbacks.decidedBy} is distinct from 'claim'`)))[0]?.s ?? 0),
     },
     claims: {
       findById: async (id) => {
@@ -258,8 +279,54 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
         await db.update(t.referrals).set(referral).where(eq(t.referrals.id, referral.id));
       },
     },
+    imports: {
+      findById: async (id) => (await db.select().from(t.importBatches).where(eq(t.importBatches.id, id)))[0] ?? null,
+      list: (page) =>
+        paged(
+          page,
+          db.select().from(t.importBatches).orderBy(desc(t.importBatches.createdAt), desc(t.importBatches.id)).limit(page.pageSize).offset(offset(page)),
+          db.select({ n: count() }).from(t.importBatches),
+        ),
+      insert: async (batch) => {
+        await db.insert(t.importBatches).values(batch);
+      },
+      update: async (batch) => {
+        await db.update(t.importBatches).set(batch).where(eq(t.importBatches.id, batch.id));
+      },
+    },
     transactions: {
-      findById: async (id) => (await db.select().from(t.networkTransactions).where(eq(t.networkTransactions.id, id)))[0] ?? null,
+      findById: async (id) => {
+        const row = (await db.select({ transaction: { ...t.networkTransactions }, merchant: merchantColumns }).from(t.networkTransactions).innerJoin(t.merchants, eq(t.networkTransactions.merchantId, t.merchants.id)).where(eq(t.networkTransactions.id, id)))[0];
+        return row ? { ...row.transaction, merchant: row.merchant } : null;
+      },
+      findByRef: async (network, networkRef) => (await db.select().from(t.networkTransactions).where(and(eq(t.networkTransactions.network, network), eq(t.networkTransactions.networkRef, networkRef))))[0] ?? null,
+      list: (filter) => {
+        const where = and(
+          filter.matchStatus ? eq(t.networkTransactions.matchStatus, filter.matchStatus) : undefined,
+          filter.network ? eq(t.networkTransactions.network, filter.network) : undefined,
+          filter.merchantId ? eq(t.networkTransactions.merchantId, filter.merchantId) : undefined,
+          filter.batchId ? eq(t.networkTransactions.batchId, filter.batchId) : undefined,
+        );
+        return paged(
+          filter,
+          db
+            .select({ transaction: { ...t.networkTransactions }, merchant: merchantColumns })
+            .from(t.networkTransactions)
+            .innerJoin(t.merchants, eq(t.networkTransactions.merchantId, t.merchants.id))
+            .where(where)
+            .orderBy(desc(t.networkTransactions.reportedAt), desc(t.networkTransactions.id))
+            .limit(filter.pageSize)
+            .offset(offset(filter))
+            .then((rows) => rows.map((r) => ({ ...r.transaction, merchant: r.merchant }))),
+          db.select({ n: count() }).from(t.networkTransactions).where(where),
+        );
+      },
+      insert: async (transaction) => {
+        await db.insert(t.networkTransactions).values(transaction);
+      },
+      update: async (transaction) => {
+        await db.update(t.networkTransactions).set(transaction).where(eq(t.networkTransactions.id, transaction.id));
+      },
       countByMatch: async (status) => (await db.select({ n: count() }).from(t.networkTransactions).where(eq(t.networkTransactions.matchStatus, status)))[0]?.n ?? 0,
     },
     audit: {
@@ -301,6 +368,61 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
       },
       validatedCentsBetween: async (from, to) =>
         Number((await db.select({ s: sum(t.cashbacks.amountCents) }).from(t.cashbacks).where(and(eq(t.cashbacks.status, "validated"), gte(t.cashbacks.validatedAt, from), lt(t.cashbacks.validatedAt, to))))[0]?.s ?? 0),
+      bucketTotals: async () => {
+        const rows = await db.select({ bucket: t.ledgerEntries.bucket, s: sum(t.ledgerEntries.amountCents) }).from(t.ledgerEntries).groupBy(t.ledgerEntries.bucket);
+        const totals: Balances = { pending: 0, available: 0, reserved: 0, paid: 0 };
+        for (const row of rows) totals[row.bucket as LedgerBucket] = Number(row.s ?? 0);
+        return totals;
+      },
+      ledgerTotalByKind: async (kind) => Number((await db.select({ s: sum(t.ledgerEntries.amountCents) }).from(t.ledgerEntries).where(eq(t.ledgerEntries.kind, kind)))[0]?.s ?? 0),
+      negativeBalances: async () => {
+        const rows = await db
+          .select({ userId: t.ledgerEntries.userId, bucket: t.ledgerEntries.bucket, s: sum(t.ledgerEntries.amountCents) })
+          .from(t.ledgerEntries)
+          .groupBy(t.ledgerEntries.userId, t.ledgerEntries.bucket)
+          .having(sql`sum(${t.ledgerEntries.amountCents}) < 0`)
+          .orderBy(asc(t.ledgerEntries.userId), asc(t.ledgerEntries.bucket));
+        return rows.map((r) => ({ userId: r.userId, bucket: r.bucket as LedgerBucket, amountCents: Number(r.s ?? 0) }));
+      },
+      // The entries of every cashback summed per bucket, next to the cashback's own status and amount; the rule
+      // itself (`cashbackNets`) lives in the domain, so the SQL only gathers the numbers.
+      cashbacksOutOfBalance: async () => {
+        const rows = await db
+          .select({
+            id: t.cashbacks.id,
+            status: t.cashbacks.status,
+            amountCents: t.cashbacks.amountCents,
+            pending: sql<string>`coalesce(sum(case when ${t.ledgerEntries.bucket} = 'pending' then ${t.ledgerEntries.amountCents} end), 0)`,
+            available: sql<string>`coalesce(sum(case when ${t.ledgerEntries.bucket} = 'available' then ${t.ledgerEntries.amountCents} end), 0)`,
+          })
+          .from(t.cashbacks)
+          .leftJoin(t.ledgerEntries, and(eq(t.ledgerEntries.refType, "cashback"), eq(t.ledgerEntries.refId, t.cashbacks.id)))
+          .groupBy(t.cashbacks.id, t.cashbacks.status, t.cashbacks.amountCents)
+          .orderBy(asc(t.cashbacks.id));
+        return rows.filter((r) => {
+          const expected = cashbackNets(r.status, r.amountCents);
+          return Number(r.pending) !== expected.pending || Number(r.available) !== expected.available;
+        }).map((r) => r.id);
+      },
+      payoutsOutOfBalance: async () => {
+        const rows = await db
+          .select({
+            id: t.payouts.id,
+            status: t.payouts.status,
+            amountCents: t.payouts.amountCents,
+            available: sql<string>`coalesce(sum(case when ${t.ledgerEntries.bucket} = 'available' then ${t.ledgerEntries.amountCents} end), 0)`,
+            reserved: sql<string>`coalesce(sum(case when ${t.ledgerEntries.bucket} = 'reserved' then ${t.ledgerEntries.amountCents} end), 0)`,
+            paid: sql<string>`coalesce(sum(case when ${t.ledgerEntries.bucket} = 'paid' then ${t.ledgerEntries.amountCents} end), 0)`,
+          })
+          .from(t.payouts)
+          .leftJoin(t.ledgerEntries, and(eq(t.ledgerEntries.refType, "payout"), eq(t.ledgerEntries.refId, t.payouts.id)))
+          .groupBy(t.payouts.id, t.payouts.status, t.payouts.amountCents)
+          .orderBy(asc(t.payouts.id));
+        return rows.filter((r) => {
+          const expected = payoutNets(r.status, r.amountCents);
+          return Number(r.available) !== expected.available || Number(r.reserved) !== expected.reserved || Number(r.paid) !== expected.paid;
+        }).map((r) => r.id);
+      },
     },
   };
 

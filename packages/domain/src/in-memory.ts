@@ -1,4 +1,4 @@
-import type { Activation, AuditEntry, Cashback, Claim, LedgerEntry, Merchant, NetworkTransaction, Offer, OfferBoost, Payout, Referral, Session, User } from "./entities.js";
+import type { Activation, AuditEntry, Cashback, Claim, ImportBatch, LedgerBucket, LedgerEntry, Merchant, NetworkTransaction, Offer, OfferBoost, Payout, Referral, Session, User } from "./entities.js";
 import type { Balances, Page, PageQuery, Ports, UnitOfWork } from "./ports.js";
 
 /*
@@ -14,6 +14,7 @@ export interface MemoryStore {
   offers: Offer[];
   offerBoosts: OfferBoost[];
   activations: Activation[];
+  importBatches: ImportBatch[];
   transactions: NetworkTransaction[];
   cashbacks: Cashback[];
   claims: Claim[];
@@ -24,7 +25,7 @@ export interface MemoryStore {
 }
 
 export function emptyStore(): MemoryStore {
-  return { users: [], sessions: [], merchants: [], offers: [], offerBoosts: [], activations: [], transactions: [], cashbacks: [], claims: [], ledgerEntries: [], payouts: [], referrals: [], auditLog: [] };
+  return { users: [], sessions: [], merchants: [], offers: [], offerBoosts: [], activations: [], importBatches: [], transactions: [], cashbacks: [], claims: [], ledgerEntries: [], payouts: [], referrals: [], auditLog: [] };
 }
 
 function paginate<T>(items: T[], query: PageQuery): Page<T> {
@@ -40,6 +41,20 @@ export function byText(a: string, b: string): number {
   const x = a.toLowerCase();
   const y = b.toLowerCase();
   return x < y ? -1 : x > y ? 1 : 0;
+}
+
+/** What a cashback's entries must sum to in each bucket, given its status. */
+export function cashbackNets(status: Cashback["status"], amountCents: number): { pending: number; available: number } {
+  if (status === "pending") return { pending: amountCents, available: 0 };
+  if (status === "validated") return { pending: 0, available: amountCents };
+  return { pending: 0, available: 0 };
+}
+
+/** What a payout's entries must sum to in each bucket, given its status. */
+export function payoutNets(status: Payout["status"], amountCents: number): { available: number; reserved: number; paid: number } {
+  if (status === "requested" || status === "checking") return { available: -amountCents, reserved: amountCents, paid: 0 };
+  if (status === "sent") return { available: -amountCents, reserved: 0, paid: amountCents };
+  return { available: 0, reserved: 0, paid: 0 };
 }
 
 function replace<T extends { id: string }>(items: T[], item: T): void {
@@ -93,6 +108,7 @@ export function inMemoryPortsCreator(initial: Partial<MemoryStore> = {}): { port
       insert: async (merchant) => {
         store.merchants.push(merchant);
       },
+      findByAdvertiser: async (network, advertiserRef) => store.merchants.find((m) => m.network === network && m.advertiserRef === advertiserRef) ?? null,
     },
     offers: {
       findById: async (id) => {
@@ -143,6 +159,15 @@ export function inMemoryPortsCreator(initial: Partial<MemoryStore> = {}): { port
           (a) => a.activatedAt,
           (a) => a.id,
         )[0] ?? null,
+      findBySubId: async (subId) => {
+        const a = store.activations.find((x) => x.subId === subId);
+        return a ? { ...a, offer: offerOf(a.offerId) } : null;
+      },
+      atMerchantBetween: async (merchantId, from, to) =>
+        store.activations
+          .filter((a) => a.activatedAt.getTime() >= from.getTime() && a.activatedAt.getTime() <= to.getTime() && offerOf(a.offerId).merchantId === merchantId)
+          .sort((a, b) => a.activatedAt.getTime() - b.activatedAt.getTime() || a.id.localeCompare(b.id))
+          .map((a) => ({ ...a, offer: offerOf(a.offerId), member: memberOf(a.userId) })),
     },
     cashbacks: {
       findById: async (id) => {
@@ -168,6 +193,10 @@ export function inMemoryPortsCreator(initial: Partial<MemoryStore> = {}): { port
       update: async (cashback) => replace(store.cashbacks, cashback),
       countByStatus: async (status) => store.cashbacks.filter((c) => c.status === status).length,
       sumByStatus: async (status) => store.cashbacks.filter((c) => c.status === status).reduce((n, c) => n + c.amountCents, 0),
+      findByActivation: async (activationId) => store.cashbacks.find((c) => c.activationId === activationId) ?? null,
+      findByTransaction: async (transactionId) => store.cashbacks.find((c) => c.networkTransactionId === transactionId) ?? null,
+      hasValidatedAt: async (userId, merchantId) => store.cashbacks.some((c) => c.userId === userId && c.status === "validated" && offerOf(c.offerId).merchantId === merchantId),
+      validatedCentsOf: async (userId) => store.cashbacks.filter((c) => c.userId === userId && c.status === "validated" && c.decidedBy !== "claim").reduce((n, c) => n + c.amountCents, 0),
     },
     claims: {
       findById: async (id) => {
@@ -255,8 +284,47 @@ export function inMemoryPortsCreator(initial: Partial<MemoryStore> = {}): { port
       },
       update: async (referral) => replace(store.referrals, referral),
     },
+    imports: {
+      findById: async (id) => store.importBatches.find((b) => b.id === id) ?? null,
+      list: async (page) =>
+        paginate(
+          newestFirst(
+            store.importBatches,
+            (b) => b.createdAt,
+            (b) => b.id,
+          ),
+          page,
+        ),
+      insert: async (batch) => {
+        store.importBatches.push(batch);
+      },
+      update: async (batch) => replace(store.importBatches, batch),
+    },
     transactions: {
-      findById: async (id) => store.transactions.find((t) => t.id === id) ?? null,
+      findById: async (id) => {
+        const t = store.transactions.find((x) => x.id === id);
+        return t ? { ...t, merchant: merchantOf(t.merchantId) } : null;
+      },
+      findByRef: async (network, networkRef) => store.transactions.find((t) => t.network === network && t.networkRef === networkRef) ?? null,
+      list: async (filter) => {
+        let items = store.transactions;
+        if (filter.matchStatus) items = items.filter((t) => t.matchStatus === filter.matchStatus);
+        if (filter.network) items = items.filter((t) => t.network === filter.network);
+        if (filter.merchantId) items = items.filter((t) => t.merchantId === filter.merchantId);
+        if (filter.batchId) items = items.filter((t) => t.batchId === filter.batchId);
+        return paginate(
+          newestFirst(
+            items,
+            (t) => t.reportedAt,
+            (t) => t.id,
+          ).map((t) => ({ ...t, merchant: merchantOf(t.merchantId) })),
+          filter,
+        );
+      },
+      insert: async (transaction) => {
+        store.transactions.push(transaction);
+      },
+      update: async (transaction) => replace(store.transactions, transaction),
       countByMatch: async (status) => store.transactions.filter((t) => t.matchStatus === status).length,
     },
     audit: {
@@ -297,6 +365,43 @@ export function inMemoryPortsCreator(initial: Partial<MemoryStore> = {}): { port
         store.cashbacks
           .filter((c) => c.status === "validated" && c.validatedAt !== null && c.validatedAt.getTime() >= from.getTime() && c.validatedAt.getTime() < to.getTime())
           .reduce((n, c) => n + c.amountCents, 0),
+      bucketTotals: async () => {
+        const b: Balances = { pending: 0, available: 0, reserved: 0, paid: 0 };
+        for (const e of store.ledgerEntries) b[e.bucket] += e.amountCents;
+        return b;
+      },
+      ledgerTotalByKind: async (kind) => store.ledgerEntries.filter((e) => e.kind === kind).reduce((n, e) => n + e.amountCents, 0),
+      negativeBalances: async () => {
+        const sums = new Map<string, { userId: string; bucket: LedgerBucket; amountCents: number }>();
+        for (const e of store.ledgerEntries) {
+          const key = `${e.userId}:${e.bucket}`;
+          const line = sums.get(key) ?? { userId: e.userId, bucket: e.bucket, amountCents: 0 };
+          line.amountCents += e.amountCents;
+          sums.set(key, line);
+        }
+        return [...sums.values()].filter((l) => l.amountCents < 0).sort((a, b) => a.userId.localeCompare(b.userId) || a.bucket.localeCompare(b.bucket));
+      },
+      cashbacksOutOfBalance: async () => {
+        const out: string[] = [];
+        for (const c of store.cashbacks) {
+          const entries = store.ledgerEntries.filter((e) => e.refType === "cashback" && e.refId === c.id);
+          const pending = entries.filter((e) => e.bucket === "pending").reduce((n, e) => n + e.amountCents, 0);
+          const available = entries.filter((e) => e.bucket === "available").reduce((n, e) => n + e.amountCents, 0);
+          const expected = cashbackNets(c.status, c.amountCents);
+          if (pending !== expected.pending || available !== expected.available) out.push(c.id);
+        }
+        return out.sort();
+      },
+      payoutsOutOfBalance: async () => {
+        const out: string[] = [];
+        for (const p of store.payouts) {
+          const entries = store.ledgerEntries.filter((e) => e.refType === "payout" && e.refId === p.id);
+          const by = (bucket: LedgerBucket) => entries.filter((e) => e.bucket === bucket).reduce((n, e) => n + e.amountCents, 0);
+          const expected = payoutNets(p.status, p.amountCents);
+          if (by("available") !== expected.available || by("reserved") !== expected.reserved || by("paid") !== expected.paid) out.push(p.id);
+        }
+        return out.sort();
+      },
     },
   };
 
