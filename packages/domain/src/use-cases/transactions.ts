@@ -76,7 +76,7 @@ export function transactionUseCasesCreator(deps: Deps) {
     if (tx.matchStatus !== "matched") {
       const named = tx.subId ? await ports.activations.findBySubId(tx.subId) : null;
       const outcome = chooseActivation(window, named ? [named] : []);
-      noMatchReason = outcome.matched ? null : outcome.reason;
+      noMatchReason = outcome.matched ? ((await ports.cashbacks.findByActivation(outcome.activation.id)) ? "click_already_used" : null) : outcome.reason;
     }
     return ok({ ...tx, activation, cashback, noMatchReason, candidates: tx.matchStatus === "matched" ? [] : proposeActivations(window, clicks) });
   };

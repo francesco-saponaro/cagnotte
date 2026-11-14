@@ -122,6 +122,8 @@ export function importUseCasesCreator(deps: Deps) {
     const candidates: ActivationForBooking[] = named ? [named] : [];
     const outcome = chooseActivation({ merchantId: transaction.merchantId, attributionDays, subId: transaction.subId, orderedAt: transaction.orderedAt }, candidates);
     if (!outcome.matched) return false;
+    // One click, one cashback: a second order on the same click is not attributed by itself.
+    if (await tx.cashbacks.findByActivation(outcome.activation.id)) return false;
     const booked = await settlement.bookTransaction(tx, transaction, outcome.activation, actor);
     return booked.cashback !== null;
   }

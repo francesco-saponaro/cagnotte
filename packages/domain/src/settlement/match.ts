@@ -19,12 +19,18 @@ export interface MatchInput {
   orderedAt: Date;
 }
 
-export type NoMatchReason = "no_sub_id" | "unknown_sub_id" | "other_merchant" | "after_order" | "outside_window";
+/**
+ * Why a transaction has no match. The first five come from `chooseActivation`; `click_already_used`
+ * is decided by the pipeline, which knows the cashbacks: one click earns one cashback, and a second
+ * order on the same click waits for a claim (the member should activate before each purchase).
+ */
+export type Disqualification = "other_merchant" | "after_order" | "outside_window";
+export type NoMatchReason = "no_sub_id" | "unknown_sub_id" | Disqualification | "click_already_used";
 
-export type MatchOutcome<A extends MatchCandidate> = { matched: true; activation: A } | { matched: false; reason: NoMatchReason };
+export type MatchOutcome<A extends MatchCandidate> = { matched: true; activation: A } | { matched: false; reason: "no_sub_id" | "unknown_sub_id" | Disqualification };
 
 /** Why this click does not qualify for this order, or null when it does. */
-export function disqualifies(tx: MatchInput, activation: MatchCandidate): Exclude<NoMatchReason, "no_sub_id" | "unknown_sub_id"> | null {
+export function disqualifies(tx: MatchInput, activation: MatchCandidate): Disqualification | null {
   if (activation.offer.merchantId !== tx.merchantId) return "other_merchant";
   const gap = tx.orderedAt.getTime() - activation.activatedAt.getTime();
   if (gap < 0) return "after_order";

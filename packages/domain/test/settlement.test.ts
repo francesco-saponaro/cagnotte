@@ -98,6 +98,16 @@ describe("importFile", () => {
     expect(await w.ports.cashbacks.list({ page: 1, pageSize: 10 })).toMatchObject({ total: 0 });
   });
 
+  it("attributes one order per click: a second order on the same click waits for a claim", async () => {
+    const w = settled();
+    const batch = unwrap(await w.importFile(MANAGER, file([{}, { ref: "LP2", order: "ORD-SECOND", amount: "40.00", commission: "2.40" }])));
+    expect(batch).toMatchObject({ newCount: 2, matchedCount: 1, unmatchedCount: 1 });
+    const second = (await w.ports.transactions.list({ matchStatus: "unmatched", page: 1, pageSize: 10 })).items[0]!;
+    expect(second.orderRef).toBe("ORD-SECOND");
+    expect(unwrap(await w.getTransaction(MANAGER, second.id)).noMatchReason).toBe("click_already_used");
+    expect((await w.ports.cashbacks.list({ page: 1, pageSize: 10 })).total).toBe(1);
+  });
+
   it("ignores a matched order the offer's rules exclude, keeping the click it came from", async () => {
     const w = settled({
       offers: [offer("ofr_min", "mer_a", { minSpendCents: 20000 }), offer("ofr_new", "mer_a", { newCustomersOnly: true })],
