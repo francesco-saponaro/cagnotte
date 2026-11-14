@@ -4,7 +4,7 @@ import { fail, ok, type Result } from "./result.js";
 /*
  * The seven state machines as tables: for each state, the states it may move to. A use case asks
  * `move` before writing, so a forbidden transition is a 409 and never a row. The tables are data on
- * purpose: they are what the docs show and what an interviewer can read in one screen.
+ * purpose: they are what the docs show and what a reader can take in on one screen.
  */
 
 export type TransitionTable<S extends string> = Readonly<Record<S, readonly S[]>>;

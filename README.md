@@ -4,7 +4,7 @@ A cashback app and the back office behind it. Members activate merchant offers, 
 
 The part I care most about is the settlement pipeline: matching a network's transactions to the activations behind them, computing each cashback by the rules of the offer at activation time, and keeping a double-entry ledger that reconciles to the cent through validations, reversals, claims, referral bonuses and payouts.
 
-This is the second evening of six. What exists today is the data model and the seed, the rules and use cases, and the API with every route but the settlement pipeline's; the pipeline and the screens follow over the week. The sections below are filled in as the parts land.
+This is the third evening of six. What exists today is the data model and the seed, the rules and use cases, the settlement pipeline and the whole API; the screens follow over the weekend. The sections below are filled in as the parts land.
 
 ## Live demo
 
@@ -41,7 +41,13 @@ curl -s localhost:3001/auth/sign-in -H 'content-type: application/json' \
 curl -s localhost:3001/me/wallet -H "authorization: Bearer $TOKEN"
 ```
 
-Every route, its role and its errors are in `docs/api.md`. Three roles: a member sees only their own data; an agent also works the claims queue; a manager also runs payouts, decisions, the catalogue and the reports. A wallet is the sum of its ledger entries, computed on each request; there is no balance column to drift.
+Every route, its role and its errors are in `docs/api.md`. Three roles: a member sees only their own data; an agent also works the claims queue; a manager also runs the imports, the transactions queue, payouts, decisions, the catalogue and the reports. A wallet is the sum of its ledger entries, computed on each request; there is no balance column to drift.
+
+## The settlement pipeline
+
+A manager posts a network's export file to `POST /imports`. The file is parsed (Linkpool sends a CSV, Affinet a JSON document; both become the same row, and a row that cannot be read is reported with its line number), deduplicated against earlier files, and each new transaction is matched to the click its `subId` names, provided the click is at the same merchant, before the order and inside the merchant's attribution window. The cashback is the activation's rate on the order, held under the offer's cap and under the network's commission, and booked as ledger entries in the state the network reports. A file about orders already known applies the changes: an approval validates the cashback, a decline refuses or takes it back, an amount change books the difference. Validations pay the referral bonuses. Transactions nothing names stay in a queue, where a claim or a manager can match them by hand.
+
+`GET /reports/reconciliation` recomputes the whole book from the entries and checks it against the cashbacks and payouts. The same checks run in the tests after every step of random histories generated with fast-check. The rules, step by step and with worked examples, are in `docs/domain.md`.
 
 ## Layout
 
@@ -64,10 +70,12 @@ TypeScript strict throughout, in a pnpm workspace. Expo with Expo Router for the
 pnpm test        # unit and integration, on PGlite, no database server needed
 ```
 
+The domain tests include property-based ones: the rounding, the matching rules, the cashback computation, and the ledger invariants over random histories of imports, corrections, decisions, payouts and claims. The API tests run every route against the seed on PGlite. Two network export fixtures shaped like the real files live in `packages/domain/test/fixtures/`.
+
 ## What is real and what is simulated
 
 Real: the database, the migrations, the sign-in, the rules, the ledger. Simulated: the affiliate networks (their exports are files shaped like real ones), the merchants (invented names), the money (no payment is ever taken, no real bank account is ever stored), the people (generated).
 
 ## Status
 
-Evening 2 of 6. See `CHANGELOG.md`.
+Evening 3 of 6. See `CHANGELOG.md`.
