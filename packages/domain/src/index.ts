@@ -8,3 +8,4 @@ export * from "./ports.js";
 export * from "./in-memory.js";
 export * from "./use-cases/index.js";
 export * from "./ids.js";
+export * from "./settlement/index.js";

@@ -1,0 +1,105 @@
+{
+  "network": "affinet",
+  "publisherId": "PUB-48213",
+  "generatedAt": "2026-11-13T02:00:00Z",
+  "transactions": [
+    {
+      "id": "AF100014",
+      "advertiserId": "AF-1000",
+      "subId": "h7g6f5d4s3a2q1w2",
+      "orderId": "ORD-A1B2C3D4",
+      "orderDate": "2026-11-09T14:22:10Z",
+      "amount": { "value": "129.90", "currency": "EUR" },
+      "commission": { "value": "15.59", "currency": "EUR" },
+      "status": "PENDING",
+      "updatedAt": "2026-11-12T02:00:00Z"
+    },
+    {
+      "id": "AF100021",
+      "advertiserId": "AF-1111",
+      "subId": null,
+      "orderId": "ORD-E5F6G7H8",
+      "orderDate": "2026-11-08T09:12:00Z",
+      "amount": { "value": "1299.00", "currency": "EUR" },
+      "commission": { "value": "64.95", "currency": "EUR" },
+      "status": "CONFIRMED",
+      "updatedAt": "2026-11-12T02:00:00Z"
+    },
+    {
+      "id": "AF100028",
+      "advertiserId": "AF-1222",
+      "subId": "e3r4t5y6u7i8o9p0",
+      "orderId": "ORD-I9J0K1L2",
+      "orderDate": "2026-11-07T21:40:15Z",
+      "amount": { "value": "80.00", "currency": "EUR" },
+      "commission": { "value": "0.00", "currency": "EUR" },
+      "status": "REJECTED",
+      "updatedAt": "2026-11-12T02:00:00Z"
+    },
+    {
+      "id": "AF100035",
+      "advertiserId": "AF-1000",
+      "subId": "x1c2v3b4n5m6l7k8",
+      "orderId": "ORD-USD",
+      "orderDate": "2026-11-09T10:00:00Z",
+      "amount": { "value": "80.00", "currency": "USD" },
+      "commission": { "value": "4.80", "currency": "USD" },
+      "status": "PENDING",
+      "updatedAt": "2026-11-12T02:00:00Z"
+    },
+    {
+      "id": "AF100042",
+      "advertiserId": "AF-1000",
+      "subId": "j8h7g6f5d4s3a2q1",
+      "orderId": "ORD-BADSTATUS",
+      "orderDate": "2026-11-09T11:00:00Z",
+      "amount": { "value": "80.00", "currency": "EUR" },
+      "commission": { "value": "4.80", "currency": "EUR" },
+      "status": "ON_HOLD",
+      "updatedAt": "2026-11-12T02:00:00Z"
+    },
+    {
+      "advertiserId": "AF-1000",
+      "subId": "z9x8c7v6b5n4m3l2",
+      "orderId": "ORD-NOID",
+      "orderDate": "2026-11-09T12:00:00Z",
+      "amount": { "value": "80.00", "currency": "EUR" },
+      "commission": { "value": "4.80", "currency": "EUR" },
+      "status": "PENDING",
+      "updatedAt": "2026-11-12T02:00:00Z"
+    },
+    {
+      "id": "AF100056",
+      "advertiserId": "AF-1000",
+      "subId": "q2w3e4r5t6y7u8i9",
+      "orderId": "ORD-BADAMOUNT",
+      "orderDate": "2026-11-09T13:00:00Z",
+      "amount": { "value": "eighty", "currency": "EUR" },
+      "commission": { "value": "4.80", "currency": "EUR" },
+      "status": "PENDING",
+      "updatedAt": "2026-11-12T02:00:00Z"
+    },
+    {
+      "id": "AF100014",
+      "advertiserId": "AF-1000",
+      "subId": "h7g6f5d4s3a2q1w2",
+      "orderId": "ORD-A1B2C3D4",
+      "orderDate": "2026-11-09T14:22:10Z",
+      "amount": { "value": "129.90", "currency": "EUR" },
+      "commission": { "value": "15.59", "currency": "EUR" },
+      "status": "CONFIRMED",
+      "updatedAt": "2026-11-13T02:00:00Z"
+    },
+    {
+      "id": "AF100063",
+      "advertiserId": "AF-1333",
+      "subId": "a1s2d3f4g5h6j7k8",
+      "orderId": "ORD-M3N4O5P6",
+      "orderDate": "not a date",
+      "amount": { "value": "80.00", "currency": "EUR" },
+      "commission": { "value": "4.80", "currency": "EUR" },
+      "status": "PENDING",
+      "updatedAt": "2026-11-12T02:00:00Z"
+    }
+  ]
+}
