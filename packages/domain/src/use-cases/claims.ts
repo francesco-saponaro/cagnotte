@@ -1,15 +1,17 @@
-import { CLAIM_DECLINE_REASONS, type Actor, type Claim, type ClaimDeclineReason, type ClaimStatus } from "../entities.js";
+import { CLAIM_DECLINE_REASONS, type Actor, type Cashback, type Claim, type ClaimDeclineReason, type ClaimStatus, type NetworkTransaction } from "../entities.js";
 import type { ClaimWithOffer, Deps, Page, PageQuery, Ports } from "../ports.js";
 import { pageQuery } from "../ports.js";
 import { fail, forbidden, notFound, ok, type Result } from "../result.js";
 import { claimTransitions, move } from "../transitions.js";
 import { hasRole, requireRole, writeAudit } from "./access.js";
+import { IGNORE_MESSAGES, settlementCreator } from "./settlement.js";
 
 /*
  * "Something missing?": a member says they bought and nothing appeared. The claim is filed against
  * an activation the member really made before the order, inside the window the terms allow, and
  * then worked by an agent through acknowledged, raised with the network, and credited or declined.
- * The credit step, which creates the cashback, lands with the settlement pipeline.
+ * The credit creates a validated cashback from the claim's click, by the offer's rules, and books
+ * it as a manual credit straight into the available bucket.
  */
 
 export interface FileClaimInput {
@@ -36,6 +38,7 @@ const stripJoins = (claim: ClaimWithOffer): Claim => {
 
 export function claimUseCasesCreator(deps: Deps) {
   const { ports, unitOfWork, clock, ids } = deps;
+  const settlement = settlementCreator(deps);
 
   const fileClaim = async (actor: Actor, input: FileClaimInput): Promise<Result<Claim>> => {
     const orderRef = input.orderRef.trim();
@@ -142,5 +145,57 @@ export function claimUseCasesCreator(deps: Deps) {
     return transitionClaim(actor, claimId, "declined", "claim.decline", async (_tx, claim) => ok({ assigneeId: claim.assigneeId ?? actor.id, declineReason: input.reason }), input.reason);
   };
 
-  return { fileClaim, listClaims, getClaim, assignClaim, acknowledgeClaim, raiseClaim, declineClaim };
+  /**
+   * `raised → credited`: the cashback the member should have had, computed from the click the
+   * claim stands on and the order the member reported (or the linked transaction's figures, when
+   * the network did report the order without a click), validated at once and booked as a manual
+   * credit. The linked transaction becomes matched.
+   */
+  const creditClaim = (actor: Actor, claimId: string) =>
+    transitionClaim(actor, claimId, "credited", "claim.credit", async (tx, claim) => {
+      const activation = await tx.activations.latestBefore(claim.userId, claim.offerId, claim.orderedAt);
+      if (!activation) return fail("rule", "the member has no activation of this offer before the order");
+      const existing = await tx.cashbacks.findByActivation(activation.id);
+      if (existing) return fail("rule", `that click already has a cashback (${existing.id}); check the member's wallet before crediting`);
+      let transaction: NetworkTransaction | null = null;
+      if (claim.networkTransactionId) {
+        const linked = await tx.transactions.findById(claim.networkTransactionId);
+        if (!linked) return notFound("transaction");
+        if (linked.matchStatus === "matched") return fail("rule", "the linked transaction is already matched to a click");
+        const { merchant: _merchant, ...row } = linked;
+        transaction = row;
+      }
+      const orderCents = transaction ? transaction.orderCents : claim.orderCents;
+      const computation = await settlement.computeFor(tx, { ...activation, offer: claim.offer }, orderCents, transaction ? transaction.commissionCents : null);
+      if (computation.kind === "ignored") return fail("rule", IGNORE_MESSAGES[computation.reason]);
+      const now = clock.now();
+      const cashback: Cashback = {
+        id: ids.id("cb_"),
+        userId: claim.userId,
+        offerId: claim.offerId,
+        activationId: activation.id,
+        networkTransactionId: transaction?.id ?? null,
+        orderCents,
+        rateBps: activation.rateBps,
+        amountCents: computation.amountCents,
+        marginClamped: computation.marginClamped,
+        status: "validated",
+        decidedBy: "claim",
+        decisionReason: "credited_from_claim",
+        expectedValidationAt: now,
+        validatedAt: now,
+        decidedAt: now,
+        createdAt: now,
+      };
+      await tx.cashbacks.insert(cashback);
+      await tx.ledger.insert(settlement.ledger.credit({ userId: claim.userId, kind: "manual_credit", refType: "cashback", refId: cashback.id, note: `Credited from claim ${claim.id}`, createdBy: actor.id }, "available", cashback.amountCents));
+      await writeAudit(tx, ids, clock, { actor, action: "cashback.create", entityType: "cashback", entityId: cashback.id, after: { status: "validated", amountCents: cashback.amountCents, claimId: claim.id } });
+      if (transaction) {
+        await tx.transactions.update({ ...transaction, matchStatus: "matched", activationId: activation.id, ignoreReason: null });
+        await writeAudit(tx, ids, clock, { actor, action: "transaction.match", entityType: "transaction", entityId: transaction.id, before: { matchStatus: transaction.matchStatus }, after: { matchStatus: "matched", activationId: activation.id, claimId: claim.id } });
+      }
+      return ok({ assigneeId: claim.assigneeId ?? actor.id, cashbackId: cashback.id });
+    });
+
+  return { fileClaim, listClaims, getClaim, assignClaim, acknowledgeClaim, raiseClaim, creditClaim, declineClaim };
 }

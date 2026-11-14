@@ -9,6 +9,9 @@ import { claimUseCasesCreator } from "./claims.js";
 import { referralUseCasesCreator } from "./referrals.js";
 import { catalogueUseCasesCreator } from "./catalogue.js";
 import { reportUseCasesCreator } from "./reports.js";
+import { importUseCasesCreator } from "./imports.js";
+import { transactionUseCasesCreator } from "./transactions.js";
+import { reconciliationUseCasesCreator } from "./reconciliation.js";
 
 /** Every use case, wired to one set of ports. The API and the browser demo each call this once. */
 export function useCasesCreator(deps: Deps) {
@@ -23,6 +26,9 @@ export function useCasesCreator(deps: Deps) {
     ...referralUseCasesCreator(deps),
     ...catalogueUseCasesCreator(deps),
     ...reportUseCasesCreator(deps),
+    ...importUseCasesCreator(deps),
+    ...transactionUseCasesCreator(deps),
+    ...reconciliationUseCasesCreator(deps),
   };
 }
 
@@ -40,3 +46,7 @@ export * from "./claims.js";
 export * from "./referrals.js";
 export * from "./catalogue.js";
 export * from "./reports.js";
+export * from "./settlement.js";
+export * from "./imports.js";
+export * from "./transactions.js";
+export * from "./reconciliation.js";
