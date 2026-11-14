@@ -1,6 +1,6 @@
 # The API
 
-Fastify 5, JSON in and out, at `http://localhost:3001` under `docker compose` (`PORT` and `HOST` in `.env`). Every route below exists today except the imports, the transactions queue, the claim credit and the reconciliation report, which land with the settlement pipeline.
+Fastify 5, JSON in and out, at `http://localhost:3001` under `docker compose` (`PORT` and `HOST` in `.env`). The rules behind the routes are in `domain.md`; this file is the shape of each request and answer.
 
 ## Conventions
 
@@ -78,7 +78,7 @@ The request schemas are zod objects in `packages/contracts`, the same ones the a
 | `POST /claims/:id/acknowledge` | agent | — | `filed → acknowledged`; the caller becomes the assignee if there is none. |
 | `POST /claims/:id/raise` | agent | `{ networkTransactionId? }` | `acknowledged → raised`. The optional transaction must be at the same merchant and not already matched (`422`). |
 | `POST /claims/:id/decline` | agent | `{ reason }` from `no_activation_before_order`, `foreign_promo_code`, `outside_claim_window`, `order_not_found_at_network`, `order_returned` | `filed \| acknowledged \| raised → declined`. |
-| `POST /claims/:id/credit` | agent | lands with the settlement pipeline | `raised → credited`: creates a validated cashback and a `manual_credit` entry. |
+| `POST /claims/:id/credit` | agent | — | `raised → credited`. Computes the cashback from the click the claim stands on and the order the member reported (or the linked transaction's amount and commission, when there is one), by the offer's rules at activation time, creates it `validated` with `decidedBy: "claim"`, books a `manual_credit` entry straight into `available`, and marks the linked transaction `matched`. The answer carries `cashbackId`. `422` when that click already has a cashback or the offer's rules exclude the order (the message names the rule). |
 
 ## Decisions on a cashback
 
@@ -89,6 +89,20 @@ The request schemas are zod objects in `packages/contracts`, the same ones the a
 | `POST /cashbacks/:id/cancel` | manager | `{ reason }` | `pending \| validated → cancelled`. A validated one is taken back from `available`, and only while the balance covers it (`422`), so no bucket ever goes negative. |
 
 Each writes `decidedBy: "manager"`, `decisionReason`, `decidedAt` and an audit row.
+
+## Imports and the transactions queue
+
+The settlement pipeline, run by hand from a network's export file. `domain.md` has the rules step by step.
+
+| Route | Role | Query or body | Answer |
+| --- | --- | --- | --- |
+| `POST /imports` | manager | `{ network: linkpool \| affinet, filename, content }` where `content` is the file as text (the CSV for linkpool, the JSON document for affinet; up to a million characters) | `201` the batch: `{ id, network, filename, importedBy, status, rowCount, newCount, updatedCount, matchedCount, unmatchedCount, errorCount, errors: [{ line, message }], createdAt, processedAt }`. `status` is `processed` when the file was read, even with error rows, and `failed` when it could not be read at all (one error on line 0). The whole file is one transaction: either every row's effects land or none do. |
+| `GET /imports` | manager | `page`, `pageSize` | Batches, newest first. |
+| `GET /imports/:id` | manager | — | One batch with its errors. Its transactions: `GET /transactions?batch=<id>`. |
+| `GET /transactions` | manager | `match` (`unmatched`, `matched`, `ignored`), `network`, `merchant` (id), `batch` (id), `page`, `pageSize` | Transactions newest reported first, each with `merchant`. |
+| `GET /transactions/:id` | manager | — | The transaction with `merchant`, `activation` (the matched click with its `offer` and `member`, or null), `cashback` (or null), `noMatchReason` (`no_sub_id`, `unknown_sub_id`, `other_merchant`, `after_order`, `outside_window`, or null once matched) and `candidates`: the clicks at the merchant inside its attribution window before the order, latest first, each with `offer` and `member`, for a match by hand. |
+| `POST /transactions/:id/match` | manager | `{ activationId }` | `unmatched \| ignored → matched`, booking the cashback exactly as the pipeline would (it can still end `ignored` with a reason if the offer's rules exclude the order). `422` when the click is at another merchant, after the order or outside the window; `409` when the click already has a cashback or the transaction is already matched. |
+| `POST /transactions/:id/ignore` | manager | `{ reason }` | `unmatched → ignored` with the reason kept on the row. `409` once matched. An ignored transaction can still be matched later. |
 
 ## The catalogue
 
@@ -107,9 +121,5 @@ Each writes `decidedBy: "manager"`, `decisionReason`, `decidedAt` and an audit r
 | --- | --- | --- | --- |
 | `GET /reports/overview` | manager | — | `{ members, liveOffers, pendingCashbacks: { count, cents }, validatedCents, validatedLast30DaysCents, unmatchedTransactions, openClaims, payoutsWaiting }`. |
 | `GET /reports/margin` | manager | `from`, `to` (default: the last 30 days) | `{ from, to, lines: [{ merchantId, merchantName, transactions, orderCents, commissionCents, cashbackCents, marginCents }], totals }`, by orders placed in the window, biggest commission first. Refused cashbacks count as zero out. |
-| `GET /reports/reconciliation` | manager | lands with the settlement pipeline | The ledger recomputed from the entries against the cashbacks and payouts. |
+| `GET /reports/reconciliation` | manager | — | The book recomputed from the entries: `{ at, buckets: { pending, available, reserved, paid }, cashbacks: { pendingCents, validatedCents }, bonusCents, checks: [{ name, expected, actual, ok }], cashbacksOutOfBalance: [id], payoutsOutOfBalance: [id], negativeBalances: [{ userId, bucket, amountCents }], ok }`. The two checks: the pending bucket equals the pending cashbacks; available + reserved + paid equals the validated cashbacks plus the referral bonuses. The lists name every cashback or payout whose entries do not net to its status and every member with a bucket below zero. `ok` is true when everything agrees. |
 | `GET /audit` | manager | `entityType`, `entityId`, `actorId`, `page`, `pageSize` | A page of `{ id, actorId, action, entityType, entityId, before, after, reason, at }`. Every transition in this document writes one. |
-
-## Still to come
-
-`POST /imports`, `GET /imports`, `GET /imports/:id`, `GET /transactions`, `GET /transactions/:id`, `POST /transactions/:id/match`, `POST /transactions/:id/ignore`, `POST /claims/:id/credit` and `GET /reports/reconciliation`: the settlement pipeline, documented in `docs/domain.md` when it lands.

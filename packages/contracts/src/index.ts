@@ -106,6 +106,17 @@ export const addBoostBody = z
   .object({ rateBps: bps, startsAt: instant, endsAt: instant })
   .refine((b) => b.endsAt.getTime() > b.startsAt.getTime(), { message: "a boost must end after it starts", path: ["endsAt"] });
 
+export const importBody = z.object({
+  network,
+  filename: required.max(120),
+  /** The export file as text; one network's CSV or the other's JSON. */
+  content: z.string().min(1, "the file is empty").max(1_000_000, "the file is too large; split it"),
+});
+export const matchStatus = z.enum(["unmatched", "matched", "ignored"]);
+export const listTransactionsQuery = pageQuery.extend({ match: matchStatus.optional(), network: network.optional(), merchant: trimmed.optional(), batch: trimmed.optional() });
+export const matchTransactionBody = z.object({ activationId: required });
+export const ignoreTransactionBody = z.object({ reason: required.max(200) });
+
 export const auditQuery = pageQuery.extend({ entityType: trimmed.optional(), entityId: trimmed.optional(), actorId: trimmed.optional() });
 export const marginQuery = z.object({ from: instant.optional(), to: instant.optional() });
 
@@ -118,3 +129,4 @@ export type CreateMerchantBody = z.infer<typeof createMerchantBody>;
 export type CreateOfferBody = z.infer<typeof createOfferBody>;
 export type UpdateOfferBody = z.infer<typeof updateOfferBody>;
 export type AddBoostBody = z.infer<typeof addBoostBody>;
+export type ImportBody = z.infer<typeof importBody>;
