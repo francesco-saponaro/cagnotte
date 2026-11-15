@@ -5,8 +5,10 @@
     "noUncheckedIndexedAccess": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@cagnotte/domain": ["../../packages/domain/src/index.ts"]
+      "@cagnotte/domain": ["../../packages/domain/src/index.ts"],
+      "@cagnotte/contracts": ["../../packages/contracts/src/index.ts"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": ["node_modules", "dist", "vitest.config.ts"]
 }
