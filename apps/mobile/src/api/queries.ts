@@ -53,7 +53,7 @@ export function useOffers(query: OffersQuery) {
 
 export function useOffer(id: string) {
   const api = useApi();
-  return useQuery({ queryKey: keys.offer(id), queryFn: () => api.get<OfferDetailRow>(`/offers/${id}`) });
+  return useQuery({ queryKey: keys.offer(id), queryFn: () => api.get<OfferDetailRow>(`/offers/${id}`), enabled: id.length > 0 });
 }
 
 export function useActivate(offerId: string) {
@@ -75,9 +75,9 @@ export function useWallet() {
   return useQuery({ queryKey: keys.wallet, queryFn: () => api.get<WalletRow>("/me/wallet", { pageSize: 50 }) });
 }
 
-export function useCashbacks(status?: CashbackRow["status"], page = 1) {
+export function useCashbacks(status?: CashbackRow["status"], page = 1, pageSize = 20) {
   const api = useApi();
-  return useQuery({ queryKey: keys.cashbacks(status, page), queryFn: () => api.get<Page<CashbackRow>>("/me/cashbacks", { status, page, pageSize: 20 }) });
+  return useQuery({ queryKey: [...keys.cashbacks(status, page), pageSize], queryFn: () => api.get<Page<CashbackRow>>("/me/cashbacks", { status, page, pageSize }) });
 }
 
 export function useCashback(id: string) {
