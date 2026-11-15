@@ -575,7 +575,7 @@ export async function generateSeed(options: SeedOptions = {}): Promise<SeedData>
       orderRef,
       orderedAt,
       orderCents,
-      proofText: `Order confirmation ${orderRef}\n${merchant.name}\nDate: ${orderedAt.toISOString().slice(0, 10)}\nTotal paid: ${(orderCents / 100).toFixed(2).replace(".", ",")} €\nEmail: ${usersById.get(activation.userId)!.email}`,
+      proofText: `Order confirmation ${orderRef}\n${merchant.name}\nDate: ${orderedAt.toISOString().slice(0, 10)}\nTotal paid: ${(orderCents / 100).toFixed(2).replace(".", ",")} €\nCustomer: ${usersById.get(activation.userId)!.displayName}`,
       status,
       assigneeId: assignee,
       networkTransactionId: null,

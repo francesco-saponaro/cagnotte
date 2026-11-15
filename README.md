@@ -4,7 +4,7 @@ A cashback app and the back office behind it. Members activate merchant offers, 
 
 The part I care most about is the settlement pipeline: matching a network's transactions to the activations behind them, computing each cashback by the rules of the offer at activation time, and keeping a double-entry ledger that reconciles to the cent through validations, reversals, claims, referral bonuses and payouts.
 
-This is the third evening of six. What exists today is the data model and the seed, the rules and use cases, the settlement pipeline and the whole API; the screens follow over the weekend. The sections below are filled in as the parts land.
+This is the fourth evening of six. What exists today is the data model and the seed, the rules and use cases, the settlement pipeline, the whole API, and the member's side of the app: offers, activation, the wallet, payouts, claims and referrals. The back office screens, demo mode and the end-to-end runs follow. The sections below are filled in as the parts land.
 
 ## Live demo
 
@@ -30,6 +30,16 @@ pnpm build
 ```
 
 The database comes up with the seed loaded: about 17,000 rows of six months of activity, generated from a fixed seed so every run is the same. Demo accounts: `marie@example.com` (member), `sam@example.com` (support agent), `nadia@example.com` (operations manager), all with the password `cagnotte-demo`.
+
+## The app
+
+One Expo app for iOS, Android and the web, with the destinations a member needs: offers to browse and activate, the wallet, claims and referrals. The web export at desktop width shows the same screens in a centred column with the destinations in a top bar; on a phone they are a bottom bar.
+
+A screen asks hooks (`useOffers`, `useWallet`, `useRequestPayout`) that go through one client over a transport, and navigates through a small interface the root layout implements with the router; nothing in a screen calls `fetch` or imports the router. The same screens can therefore run against the API and, in demo mode, against the use cases in the browser, and they can be tested as components: the tests render the real screens with react-native-web in jsdom against a fake transport that answers with fixture rows or with the API's own error shape.
+
+The wallet draws the pot as its four buckets, pending, available, reserved and paid out, as one bar at their true proportions. A balance is a sum of ledger entries, so the bar is the ledger seen from above; available is the one coloured segment because it is the money that is really the member's.
+
+Forms validate with the same zod schemas the API parses with, before sending; what the API still refuses (a transfer under 20 €, a claim three months late) comes back as a 422 and the form shows the API's own sentence.
 
 ## The API
 
@@ -70,6 +80,8 @@ TypeScript strict throughout, in a pnpm workspace. Expo with Expo Router for the
 pnpm test        # unit and integration, on PGlite, no database server needed
 ```
 
+The app's tests are component tests: every screen rendered with react-native-web against a fake transport, with the forms submitted and the API's refusals shown.
+
 The domain tests include property-based ones: the rounding, the matching rules, the cashback computation, and the ledger invariants over random histories of imports, corrections, decisions, payouts and claims. The API tests run every route against the seed on PGlite. Two network export fixtures shaped like the real files live in `packages/domain/test/fixtures/`.
 
 ## What is real and what is simulated
@@ -78,4 +90,4 @@ Real: the database, the migrations, the sign-in, the rules, the ledger. Simulate
 
 ## Status
 
-Evening 3 of 6. See `CHANGELOG.md`.
+Evening 4 of 6. See `CHANGELOG.md`.

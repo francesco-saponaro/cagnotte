@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-15
+
+- `apps/mobile`: the member's app. An API client over a transport (HTTP today, the in-browser use cases for demo mode next), a session store that keeps the opaque token in storage and drops it on a 401, one query hook per route with TanStack Query, and navigation behind an interface so the screens never import the router. The shell: a top bar with the destinations on a wide screen, a bottom bar on a phone, Geist loaded on every platform.
+- Screens: sign-in with the three demo accounts; the offers list with server-side search, category, sort and paging; the offer with the rate in force, its boost and conditions, Activate, the tracking link out, and the member's own activations of it; the wallet with the available balance, the pot's four buckets drawn at their true proportions, the next cashback to validate, the cashbacks filtered on the server and the latest ledger movements; the cashback with how it was computed and every move of its money; the payout form (transfer, gift card, donation) with the IBAN masked before it is sent; the claims list, the claim form over the offers the member activated, the claim with where it stands and why it was declined; the referrals with the code, the friends and the bonuses paid.
+- Forms validate with the schemas from `packages/contracts` before sending and show the API's own words when a rule refuses the request after.
+- The web export's HTML shell now writes the bundle scripts (the earlier shell left them out, so the exported pages rendered nothing).
+- Component tests for every screen with react-native-web in jsdom against a fake transport; the seed's claim proof text names the customer instead of their email.
+- Decision record 7 (screens behind a transport and a navigation interface).
+
 ## 2026-11-14
 
 - `packages/domain`: the settlement pipeline. Two parsers for the networks' export formats (CSV and JSON) with line-level errors and in-file deduplication; matching by click reference under the merchant, time and attribution-window rules, with the reason kept when there is no match; the cashback computation with the minimum spend, the new-customer rule, the cap and the margin rule; booking into the ledger in the state the network reports; updates from later files (approvals, declines, returns, amount corrections); the referral bonuses on validation; the transactions queue with match-by-hand and ignore; the claim credit; the reconciliation report. Manual decisions go through the same booking step, so they pay the referral bonus too, and a later network file leaves them alone.
