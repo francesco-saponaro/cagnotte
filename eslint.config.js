@@ -12,6 +12,11 @@ export default tseslint.config(
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },
   {
+    // Build scripts run under Node.
+    files: ["**/scripts/*.mjs"],
+    languageOptions: { globals: { console: "readonly", process: "readonly" } },
+  },
+  {
     rules: {
       "@typescript-eslint/consistent-type-imports": "error",
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", destructuredArrayIgnorePattern: "^_", ignoreRestSiblings: true }],

@@ -22,7 +22,8 @@ const STEPS: { title: string; text: string }[] = [
   { title: "Pay it out", text: "A bank transfer from 20 €, a gift card from 15 €, or a donation from 5 €. Something missing? File a claim with the order details." },
 ];
 
-export function SignInScreen() {
+/** `demo` says the database runs in the page, so the visitor knows why the first sign-in takes a moment. */
+export function SignInScreen({ demo = false }: { demo?: boolean } = {}) {
   const nav = useNav();
   const wide = useWide();
   const signIn = useSignIn();
@@ -116,6 +117,11 @@ export function SignInScreen() {
               </Pressable>
             ))}
           </View>
+          {demo ? (
+            <T variant="small" style={styles.demoNote}>
+              This demo runs PostgreSQL in your browser: the first sign-in loads the schema and about 17,000 rows of seed data, which takes a few seconds. Nothing leaves the page, and a reload starts the data over.
+            </T>
+          ) : null}
         </Card>
       </View>
     </Screen>
@@ -142,6 +148,7 @@ const styles = StyleSheet.create({
   submit: { marginTop: 4 },
   demoTitle: { marginTop: 28, marginBottom: 10 },
   demoRow: { flexDirection: "row", gap: 8 },
+  demoNote: { marginTop: 16 },
   demo: { flex: 1, height: 52, borderRadius: radius.control, backgroundColor: colors.raised, alignItems: "flex-start", justifyContent: "center", paddingHorizontal: 12 },
   demoPressed: { backgroundColor: colors.active },
   demoName: { fontSize: size.body, lineHeight: 18, color: colors.text },

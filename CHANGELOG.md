@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-16
+
+- `packages/handlers`: the routes as a table (method, path, least role, schema, use case, success status) with a dispatcher free of any server; the Fastify app registers the table and keeps its bearer hook and error mapping.
+- Demo mode: with `EXPO_PUBLIC_API_URL` empty the app dispatches the same table on the use cases over PGlite in the page. The build copies PGlite's WebAssembly module, data bundle and the committed migration into the export; the first request compiles the engine, applies the migration and loads the seed. A session kept across a reload is written back into the new database. The sign-in screen says so.
+- Decision record 8 (demo mode runs PostgreSQL in the page).
 ## 2026-11-15
 
 - `apps/mobile`: the member's app. An API client over a transport (HTTP today, the in-browser use cases for demo mode next), a session store that keeps the opaque token in storage and drops it on a 401, one query hook per route with TanStack Query, and navigation behind an interface so the screens never import the router. The shell: a top bar with the destinations on a wide screen, a bottom bar on a phone, Geist loaded on every platform.

@@ -8,7 +8,7 @@ import * as schema from "./schema.js";
 import type { Db } from "./db.js";
 
 /** The SQL files `drizzle-kit generate` writes, committed next to the schema they match. */
-export const migrationsFolder = fileURLToPath(new URL("../drizzle/", import.meta.url));
+export const migrationsFolder = fileURLToPath(new URL("../drizzle/", import.meta.url).href);
 
 export interface Connection {
   db: Db;

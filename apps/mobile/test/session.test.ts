@@ -14,7 +14,7 @@ describe("the session store", () => {
     const store = sessionStoreCreator(memoryStorage());
     expect(store.get().status).toBe("loading");
     await store.load();
-    expect(store.get()).toEqual({ status: "signed-out", token: null, user: null });
+    expect(store.get()).toEqual({ status: "signed-out", token: null, user: null, expiresAt: null });
   });
 
   it("signs in, tells its subscribers and writes the session to storage", async () => {
@@ -29,12 +29,13 @@ describe("the session store", () => {
     expect(await storage.get("cagnotte.session")).toContain("tok");
   });
 
-  it("opens signed in from a stored session that has not expired", async () => {
+  it("opens signed in from a stored session that has not expired, with its expiry", async () => {
     const storage = memoryStorage();
-    await sessionStoreCreator(storage).signIn({ user: marie, token: "tok", expiresAt: inAnHour() });
+    const expiresAt = inAnHour();
+    await sessionStoreCreator(storage).signIn({ user: marie, token: "tok", expiresAt });
     const again = sessionStoreCreator(storage);
     await again.load();
-    expect(again.get()).toMatchObject({ status: "signed-in", token: "tok", user: { id: "usr_marie" } });
+    expect(again.get()).toMatchObject({ status: "signed-in", token: "tok", user: { id: "usr_marie" }, expiresAt });
   });
 
   it("drops a stored session that has expired", async () => {
@@ -59,7 +60,7 @@ describe("the session store", () => {
     const store = sessionStoreCreator(storage);
     await store.signIn({ user: marie, token: "tok", expiresAt: inAnHour() });
     await store.signOut();
-    expect(store.get()).toEqual({ status: "signed-out", token: null, user: null });
+    expect(store.get()).toEqual({ status: "signed-out", token: null, user: null, expiresAt: null });
     expect(await storage.get("cagnotte.session")).toBeNull();
   });
 

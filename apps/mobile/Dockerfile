@@ -6,6 +6,7 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY packages/domain/package.json packages/domain/
 COPY packages/contracts/package.json packages/contracts/
+COPY packages/handlers/package.json packages/handlers/
 COPY packages/postgres/package.json packages/postgres/
 COPY apps/api/package.json apps/api/
 COPY apps/mobile/package.json apps/mobile/

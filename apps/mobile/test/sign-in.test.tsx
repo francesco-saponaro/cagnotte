@@ -14,6 +14,11 @@ describe("the sign-in screen", () => {
     expect(api.calls).toHaveLength(0);
   });
 
+  it("says where the database runs when the app is in demo mode, and not otherwise", async () => {
+    await renderApp(<SignInScreen demo />, { session: await signedOut() });
+    expect(screen.getByText(/runs PostgreSQL in your browser/)).toBeInTheDocument();
+  });
+
   it("signs in, stores the session and goes to the offers", async () => {
     const signedInRow = { user: marie, token: "tok_fresh", expiresAt: new Date(Date.now() + 3_600_000).toISOString() };
     const { api, nav, session } = await renderApp(<SignInScreen />, { session: await signedOut(), routes: { "POST /auth/sign-in": () => signedInRow } });

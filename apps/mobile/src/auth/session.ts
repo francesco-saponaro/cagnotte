@@ -18,6 +18,8 @@ export interface SessionState {
   status: SessionStatus;
   token: string | null;
   user: UserRow | null;
+  /** When the API said the token dies, as it gave it; demo mode writes the session back with it. */
+  expiresAt: string | null;
 }
 
 export interface SessionStore {
@@ -31,7 +33,7 @@ export interface SessionStore {
 
 export const SESSION_KEY = "cagnotte.session";
 
-const SIGNED_OUT: SessionState = { status: "signed-out", token: null, user: null };
+const SIGNED_OUT: SessionState = { status: "signed-out", token: null, user: null, expiresAt: null };
 
 interface Stored {
   token: string;
@@ -52,7 +54,7 @@ function readStored(raw: string | null): Stored | null {
 }
 
 export function sessionStoreCreator(storage: SessionStorage): SessionStore {
-  let state: SessionState = { status: "loading", token: null, user: null };
+  let state: SessionState = { status: "loading", token: null, user: null, expiresAt: null };
   const listeners = new Set<() => void>();
 
   const set = (next: SessionState) => {
@@ -73,11 +75,11 @@ export function sessionStoreCreator(storage: SessionStorage): SessionStore {
         set(SIGNED_OUT);
         return;
       }
-      set({ status: "signed-in", token: stored.token, user: stored.user });
+      set({ status: "signed-in", token: stored.token, user: stored.user, expiresAt: stored.expiresAt });
     },
     async signIn({ user, token, expiresAt }) {
       await storage.set(SESSION_KEY, JSON.stringify({ token, user, expiresAt } satisfies Stored));
-      set({ status: "signed-in", token, user });
+      set({ status: "signed-in", token, user, expiresAt });
     },
     async signOut() {
       await storage.remove(SESSION_KEY);
