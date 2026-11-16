@@ -7,6 +7,7 @@
 - Decision record 8 (demo mode runs PostgreSQL in the page).
 - The back office, as a second route group for agents and managers, each role with its own destinations and home. Support: the claims queue filtered on the server by status, assignee and search, and the case with the proof, the member's pot and their cashbacks at that shop, worked through its state machine (take, acknowledge, raise with the unmatched sale that carries the same order reference, credit, decline with a reason from the list). Payouts: the queue by status with check, send and fail with a reason.
 - The client reads a 400's field path as the API writes it (joined with dots), so a refused field lands under its input.
+- Imports: the batches with their counts, the form that takes a network's file pasted or chosen from disk, and the batch with its lines to fix and the sales it holds. The transactions queue filtered by match status and network; the sale with why it matched nobody in words, the clicks that qualify with match by hand, set aside with a reason, and the cashback it booked with the manager's validate, refuse and cancel, each with a reason.
 
 ## 2026-11-15
 
