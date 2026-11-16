@@ -19,6 +19,9 @@
       ],
       "@cagnotte/contracts": [
         "../../packages/contracts/src/index.ts"
+      ],
+      "@cagnotte/handlers": [
+        "../../packages/handlers/src/index.ts"
       ]
     }
   },

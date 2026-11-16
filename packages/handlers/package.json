@@ -1,0 +1,30 @@
+{
+  "name": "@cagnotte/handlers",
+  "version": "0.1.0",
+  "description": "The routes of the Cagnotte API as a plain table, free of any framework: the server registers them with Fastify and the browser demo dispatches on them in the page.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cagnotte/contracts": "workspace:*",
+    "@cagnotte/domain": "workspace:*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  }
+}

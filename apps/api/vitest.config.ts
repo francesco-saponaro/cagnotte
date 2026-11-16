@@ -8,6 +8,7 @@ export default defineConfig({
     alias: [
       { find: "@cagnotte/domain", replacement: src("../../packages/domain/src/index.ts") },
       { find: "@cagnotte/contracts", replacement: src("../../packages/contracts/src/index.ts") },
+      { find: "@cagnotte/handlers", replacement: src("../../packages/handlers/src/index.ts") },
       { find: /^@cagnotte\/postgres\/(.*)$/, replacement: `${src("../../packages/postgres/src/")}$1` },
       { find: "@cagnotte/postgres", replacement: src("../../packages/postgres/src/index.ts") },
     ],

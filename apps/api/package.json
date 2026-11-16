@@ -15,6 +15,7 @@
   "dependencies": {
     "@cagnotte/contracts": "workspace:*",
     "@cagnotte/domain": "workspace:*",
+    "@cagnotte/handlers": "workspace:*",
     "@cagnotte/postgres": "workspace:*",
     "@fastify/cors": "^11.4.1",
     "@fastify/rate-limit": "^11.2.2",

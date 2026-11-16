@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "outDir": "dist",
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@cagnotte/domain": ["../domain/src/index.ts"],
+      "@cagnotte/contracts": ["../contracts/src/index.ts"]
+    }
+  },
+  "include": ["src", "test", "vitest.config.ts"]
+}

@@ -64,8 +64,9 @@ A manager posts a network's export file to `POST /imports`. The file is parsed (
 ```
 packages/domain     the rules: money, rates, state machines, the use cases, the ledger; ports as interfaces; no framework, no database
 packages/contracts  the request schemas (zod), shared by the API and the app's forms
+packages/handlers   the routes as a table: method, path, least role, schema, use case; registered by the server, dispatched by the demo
 packages/postgres   the Drizzle schema, migrations, seed generator and the ports over PostgreSQL or PGlite
-apps/api            the Fastify server, the only place HTTP exists
+apps/api            the Fastify server: the bearer hook, the error mapping and the route table registered
 apps/mobile         the Expo app for iOS, Android and the web; the web export is the demo
 docs/               architecture, domain, API, decision records, screenshots
 ```

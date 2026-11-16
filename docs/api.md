@@ -24,7 +24,7 @@ Fastify 5, JSON in and out, at `http://localhost:3001` under `docker compose` (`
 | 422 | `rule` | A well-formed request a business rule refuses: a transfer under 20 €, more than the available balance, a claim with no activation before the order, a boost below the base rate. |
 | 429 | `rate_limited` | More than 20 requests a minute from one address on `/auth/*`. |
 
-The request schemas are zod objects in `packages/contracts`, the same ones the app's forms use.
+The request schemas are zod objects in `packages/contracts`, the same ones the app's forms use. The routes themselves are a table in `packages/handlers` (method, path, least role, schema, use case, success status) that the Fastify server registers and that the browser demo dispatches on without a server, so the two answer the same statuses and the same error bodies.
 
 ## Auth
 

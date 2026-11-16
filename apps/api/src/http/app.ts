@@ -1,12 +1,13 @@
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { cryptoIdGeneratorCreator, systemClock, useCasesCreator, type Clock, type IdGenerator, type UseCases } from "@cagnotte/domain";
+import { invalidResponse, routesCreator } from "@cagnotte/handlers";
 import { drizzlePortsCreator, type Db } from "@cagnotte/postgres";
 import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import { authPlugin } from "./auth.js";
 import { errorBody, statusOf } from "./reply.js";
-import { registerRoutes } from "./routes/index.js";
+import { registerRoutes } from "./routes.js";
 
 export interface AppOptions {
   db: Db;
@@ -21,8 +22,8 @@ export interface AppOptions {
 
 /**
  * The composition root of the server. This folder is the only place a Fastify request or reply
- * exists: the routes parse, call a use case and map its result to a status. The browser demo
- * builds the same use cases over PGlite and skips this file entirely.
+ * exists. The routes themselves are the table in `packages/handlers`: the browser demo dispatches
+ * on the same table over PGlite and skips this file entirely.
  */
 export function buildApp(options: AppOptions): FastifyInstance {
   const { ports, unitOfWork } = drizzlePortsCreator(options.db);
@@ -40,7 +41,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
   app.setNotFoundHandler((_req, reply) => reply.status(404).send(errorBody("not_found", "no such route")));
   app.setErrorHandler((error: unknown, _req, reply) => {
     if (error instanceof ZodError) {
-      return reply.status(400).send(errorBody("invalid", "the request is not valid", error.issues.map((i) => ({ path: i.path.join("."), message: i.message }))));
+      const invalid = invalidResponse(error);
+      return reply.status(invalid.status).send(invalid.body);
     }
     const status = (error as { statusCode?: number }).statusCode;
     if (status === 429) return reply.status(429).send(errorBody("rate_limited", "too many requests, try again in a minute"));
@@ -50,7 +52,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get("/health", async () => ({ ok: true }));
-  app.register(async (scope) => registerRoutes(scope, useCases));
+  app.register(async (scope) => registerRoutes(scope, routesCreator(useCases)));
 
   return app;
 }
