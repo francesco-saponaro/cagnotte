@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ClaimDetailScreen } from "@/screens/claim-detail";
-import { NewClaimScreen } from "@/screens/claim-new";
+import { NewClaimScreen, orderDayEnd } from "@/screens/claim-new";
 import { ClaimsScreen } from "@/screens/claims";
 import { ReferralsScreen } from "@/screens/referrals";
 import { activationVernet, claimDeclined, claimFiled, offerVernet, referrals } from "./fixtures";
@@ -65,6 +65,16 @@ describe("the claim form", () => {
     fireEvent.change(screen.getByLabelText("Order confirmation"), { target: { value: "Order ORD-1." } });
     fireEvent.click(screen.getByRole("button", { name: "File the claim" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("within three months");
+  });
+});
+
+describe("the order day of a claim", () => {
+  it("is read as the end of that day, so a click earlier the same day counts, and never later than now", () => {
+    const now = new Date(2026, 10, 16, 19, 30, 0);
+    expect(orderDayEnd("2026-11-02", now)?.toISOString()).toBe(new Date(2026, 10, 2, 23, 59, 59, 999).toISOString());
+    expect(orderDayEnd("2026-11-16", now)?.toISOString()).toBe(now.toISOString());
+    expect(orderDayEnd("2026-11-31", now)).toBeNull();
+    expect(orderDayEnd("yesterday", now)).toBeNull();
   });
 });
 

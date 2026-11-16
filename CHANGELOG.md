@@ -9,6 +9,8 @@
 - The client reads a 400's field path as the API writes it (joined with dots), so a refused field lands under its input.
 - Imports: the batches with their counts, the form that takes a network's file pasted or chosen from disk, and the batch with its lines to fix and the sales it holds. The transactions queue filtered by match status and network; the sale with why it matched nobody in words, the clicks that qualify with match by hand, set aside with a reason, and the cashback it booked with the manager's validate, refuse and cancel, each with a reason.
 - The catalogue with every status, a form for a new offer that speaks in percentages and euros and sends basis points and cents, the offer's moves (publish, pause, resume, end) and its boosts. The dashboard: the three queues as links, the margin by shop drawn as the share of each commission paid out as cashback, the pot across every member, and the reconciliation report check by check.
+- Two fixes the demo build showed: the demo transport carries the query as text, as a URL would, so a flag sent as a number is read (the catalogue was empty in the demo); a claim's order day is read as the end of that day, capped at now, so a click made earlier the same day counts.
+- End-to-end runs with Playwright on the demo build: a member earns and takes money out; a claim goes from the member's form to a credited cashback through support; a manager imports a file, matches a sale by hand and validates the cashback. `pnpm build:web` then `pnpm test:e2e`; CI runs them.
 
 ## 2026-11-15
 

@@ -55,6 +55,15 @@ describe("the demo transport", () => {
     expect(me.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
+  it("sends the query as text, as a URL would carry it, so a flag given as a number is read like '1'", async () => {
+    const token = await signIn("nadia@example.com");
+    const res = await transport.request({ method: "GET", path: "/offers", query: { all: 1, page: 1, pageSize: 5, sort: "newest", q: undefined }, token });
+    expect(res.status).toBe(200);
+    const page = res.body as { items: { status: string }[]; total: number };
+    expect(page.total).toBeGreaterThan(68);
+    expect(page.items.some((o) => o.status !== "live")).toBe(true);
+  });
+
   it("writes through the same use cases, so a payout request moves money to reserved", async () => {
     const token = await signIn("marie@example.com");
     const before = (await transport.request({ method: "GET", path: "/me/wallet", token })).body as { balances: { available: number; reserved: number } };

@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "pnpm -r typecheck",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:e2e": "pnpm --filter @cagnotte/mobile test:e2e"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

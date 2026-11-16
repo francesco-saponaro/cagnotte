@@ -29,6 +29,18 @@ export function parseDay(text: string): Date | null {
   return date;
 }
 
+/**
+ * The order day as the claim sends it: the end of that day, so a click made earlier the same day
+ * counts as before the order (the member activated at seven, bought at five past), capped at now
+ * so a claim filed today is never dated in the future.
+ */
+export function orderDayEnd(text: string, now: Date = new Date()): Date | null {
+  const day = parseDay(text);
+  if (!day) return null;
+  const end = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999);
+  return end.getTime() > now.getTime() ? now : end;
+}
+
 /** One line per offer, the latest activation of each. */
 export function offersActivated(activations: ActivationWithOfferRow[]): ActivationWithOfferRow[] {
   const byOffer = new Map<string, ActivationWithOfferRow>();
@@ -57,7 +69,7 @@ export function NewClaimScreen() {
     setFormError(null);
     const own: FieldErrors = {};
     if (!offerId) own.offerId = "choose the offer you activated before buying";
-    const day = parseDay(orderedAt);
+    const day = orderDayEnd(orderedAt);
     if (!day) own.orderedAt = "a date like 2026-11-02";
     const cents = parseEuros(amount);
     if (cents === null) own.orderCents = "enter the amount in euros, like 64,50";

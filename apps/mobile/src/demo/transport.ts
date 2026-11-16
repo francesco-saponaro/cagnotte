@@ -2,7 +2,7 @@ import { cryptoIdGeneratorCreator, systemClock, useCasesCreator, type Clock, typ
 import { dispatcherCreator, errorBody, routesCreator, type Dispatch } from "@cagnotte/handlers";
 import { drizzlePortsCreator } from "@cagnotte/postgres/adapters";
 import type { Db } from "@cagnotte/postgres/db";
-import type { Transport } from "../api/transport";
+import type { Query, Transport } from "../api/transport";
 
 /*
  * The transport of demo mode: the API's route table dispatched on the use cases over a database
@@ -16,6 +16,15 @@ export interface DemoOptions {
   clock?: Clock;
   ids?: IdGenerator;
   sessionHours?: number;
+}
+
+/** What a URL carries: every defined value as text, the way `queryString` writes it for the HTTP transport. */
+function asWire(query: Query | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (value !== undefined && value !== "") out[key] = String(value);
+  }
+  return out;
 }
 
 export function demoTransportCreator(open: () => Promise<Db>, options: DemoOptions = {}): Transport {
@@ -41,7 +50,7 @@ export function demoTransportCreator(open: () => Promise<Db>, options: DemoOptio
         return { status: 500, body: errorBody("internal", `the demo database could not be opened: ${error instanceof Error ? error.message : String(error)}`) };
       }
       try {
-        const response = await run({ method, path, query, body, token });
+        const response = await run({ method, path, query: asWire(query), body, token });
         // What the screens get is what the wire would carry: a Date is an ISO string, undefined is gone.
         return { status: response.status, body: response.body === undefined ? undefined : JSON.parse(JSON.stringify(response.body)) };
       } catch (error) {
