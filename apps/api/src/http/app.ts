@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import { cryptoIdGeneratorCreator, systemClock, useCasesCreator, type Clock, type IdGenerator, type UseCases } from "@cagnotte/domain";
 import { invalidResponse, routesCreator } from "@cagnotte/handlers";
@@ -32,6 +33,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: false });
   app.decorate("useCases", useCases);
 
+  // A JSON API, so the defaults fit: no framing, no sniffing, a policy that allows nothing to run, no referrer.
+  app.register(helmet, { referrerPolicy: { policy: "no-referrer" }, frameguard: { action: "deny" } });
   app.register(cors, { origin: options.webOrigin ?? false, methods: ["GET", "POST", "PATCH", "OPTIONS"] });
   // One counter per address across every /auth route, so a brute force cannot split itself between sign-in and sign-up.
   const authRateLimit = options.authRateLimit ?? { max: 20, timeWindow: "1 minute" };

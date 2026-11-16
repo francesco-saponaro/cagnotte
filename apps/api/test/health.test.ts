@@ -17,6 +17,15 @@ describe("the server", () => {
     await close();
   });
 
+  it("sends the headers that keep a browser from misreading or framing an answer", async () => {
+    const res = await app.inject({ method: "GET", url: "/health" });
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+    expect(res.headers["x-frame-options"]).toBe("DENY");
+    expect(res.headers["content-security-policy"]).toContain("default-src 'self'");
+    expect(res.headers["referrer-policy"]).toBe("no-referrer");
+    expect(res.headers["x-powered-by"]).toBeUndefined();
+  });
+
   it("answers the health check", async () => {
     const res = await app.inject({ method: "GET", url: "/health" });
     expect(res.statusCode).toBe(200);

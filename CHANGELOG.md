@@ -11,6 +11,7 @@
 - The catalogue with every status, a form for a new offer that speaks in percentages and euros and sends basis points and cents, the offer's moves (publish, pause, resume, end) and its boosts. The dashboard: the three queues as links, the margin by shop drawn as the share of each commission paid out as cashback, the pot across every member, and the reconciliation report check by check.
 - Two fixes the demo build showed: the demo transport carries the query as text, as a URL would, so a flag sent as a number is read (the catalogue was empty in the demo); a claim's order day is read as the end of that day, capped at now, so a click made earlier the same day counts.
 - End-to-end runs with Playwright on the demo build: a member earns and takes money out; a claim goes from the member's form to a credited cashback through support; a manager imports a file, matches a sale by hand and validates the cashback. `pnpm build:web` then `pnpm test:e2e`; CI runs them.
+- Headers: the API answers with helmet's set (no framing, no sniffing, a policy that lets nothing run, no referrer); the static demo gets a content policy that allows the WebAssembly engine and the router's one inline line by its hash, through `public/_headers`, and `public/_redirects` serves the app on every route; the web container's nginx sends the plain headers. A moderate advisory in a build-time dependency of the Expo tooling is closed with an override.
 
 ## 2026-11-15
 
