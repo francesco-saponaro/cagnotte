@@ -1,3 +1,4 @@
+import type { UserRole } from "@cagnotte/domain";
 import type { PropsWithChildren } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSession } from "../app-context";
@@ -15,16 +16,43 @@ import { Wordmark } from "./wordmark";
 export interface Destination {
   href: string;
   label: string;
+  /** A shorter label for the phone's bottom bar, where six must fit. */
+  short?: string;
   /** The route group this destination owns, to mark it active. */
   matches: (path: string) => boolean;
 }
 
+const under = (prefix: string) => (path: string) => path === prefix || path.startsWith(`${prefix}/`);
+
 export const MEMBER_DESTINATIONS: Destination[] = [
-  { href: "/offers", label: "Offers", matches: (p) => p.startsWith("/offers") },
-  { href: "/wallet", label: "Wallet", matches: (p) => p.startsWith("/wallet") },
-  { href: "/claims", label: "Claims", matches: (p) => p.startsWith("/claims") },
-  { href: "/referrals", label: "Referrals", matches: (p) => p.startsWith("/referrals") },
+  { href: "/offers", label: "Offers", matches: under("/offers") },
+  { href: "/wallet", label: "Wallet", matches: under("/wallet") },
+  { href: "/claims", label: "Claims", matches: under("/claims") },
+  { href: "/referrals", label: "Referrals", matches: under("/referrals") },
 ];
+
+const SUPPORT: Destination = { href: "/support", label: "Support", matches: under("/support") };
+
+/** The back office: an agent works the support queue beside their own account; a manager has the whole of it. */
+export const MANAGER_DESTINATIONS: Destination[] = [
+  { href: "/dashboard", label: "Dashboard", short: "Home", matches: under("/dashboard") },
+  SUPPORT,
+  { href: "/imports", label: "Imports", matches: under("/imports") },
+  { href: "/transactions", label: "Transactions", short: "Queue", matches: under("/transactions") },
+  { href: "/payouts", label: "Payouts", matches: under("/payouts") },
+  { href: "/catalogue", label: "Catalogue", short: "Offers", matches: under("/catalogue") },
+];
+
+export function destinationsFor(role: UserRole): Destination[] {
+  switch (role) {
+    case "member":
+      return MEMBER_DESTINATIONS;
+    case "agent":
+      return [SUPPORT, ...MEMBER_DESTINATIONS.filter((d) => d.href !== "/claims")];
+    case "manager":
+      return MANAGER_DESTINATIONS;
+  }
+}
 
 export function Shell({ children, path, destinations = MEMBER_DESTINATIONS, onSignOut }: PropsWithChildren<{ path: string; destinations?: Destination[]; onSignOut: () => void }>) {
   const wide = useWide();
@@ -34,7 +62,7 @@ export function Shell({ children, path, destinations = MEMBER_DESTINATIONS, onSi
     <View style={styles.frame}>
       <View style={styles.bar} role="banner">
         <View style={[styles.barInner, wide ? styles.barInnerWide : styles.barInnerNarrow]}>
-          <Link href="/offers" aria-label="Cagnotte, home">
+          <Link href={destinations[0]?.href ?? "/offers"} aria-label="Cagnotte, home">
             <Wordmark />
           </Link>
           {wide ? (
@@ -42,7 +70,7 @@ export function Shell({ children, path, destinations = MEMBER_DESTINATIONS, onSi
               {destinations.map((d) => {
                 const active = d.matches(path);
                 return (
-                  <Link key={d.href} href={d.href} aria-label={d.label} style={[styles.link, active ? styles.linkActive : null]}>
+                  <Link key={d.href} href={d.href} aria-label={d.label} aria-current={active ? "page" : undefined} style={[styles.link, active ? styles.linkActive : null]}>
                     <Text style={[styles.linkText, font(500), active ? styles.linkTextActive : null]}>{d.label}</Text>
                   </Link>
                 );
@@ -65,9 +93,11 @@ export function Shell({ children, path, destinations = MEMBER_DESTINATIONS, onSi
           {destinations.map((d) => {
             const active = d.matches(path);
             return (
-              <Link key={d.href} href={d.href} aria-label={d.label} style={styles.tab}>
+              <Link key={d.href} href={d.href} aria-label={d.label} aria-current={active ? "page" : undefined} style={styles.tab}>
                 <View style={[styles.tabDot, active ? styles.tabDotActive : null]} />
-                <Text style={[styles.tabText, font(active ? 500 : 400), active ? styles.tabTextActive : null]}>{d.label}</Text>
+                <Text style={[styles.tabText, font(active ? 500 : 400), active ? styles.tabTextActive : null]} numberOfLines={1}>
+                  {d.short ?? d.label}
+                </Text>
               </Link>
             );
           })}
@@ -92,7 +122,7 @@ const styles = StyleSheet.create({
   who: { fontSize: size.body, lineHeight: 20, color: colors.muted, maxWidth: 160 },
   signOut: { height: 32, paddingHorizontal: 8, justifyContent: "center" },
   body: { flex: 1 },
-  tabs: { height: 60, flexDirection: "row", backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
+  tabs: { height: 60, flexDirection: "row", paddingHorizontal: 8, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
   tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6 },
   tabDot: { width: 20, height: 3, borderRadius: 2, backgroundColor: "transparent" },
   tabDotActive: { backgroundColor: colors.text },

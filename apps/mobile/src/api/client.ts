@@ -9,7 +9,8 @@ import type { Query, Transport, TransportRequest } from "./transport";
 export type ApiErrorCode = "invalid" | "unauthorized" | "forbidden" | "not_found" | "conflict" | "rule" | "rate_limited" | "internal" | "network";
 
 export interface FieldIssue {
-  path: (string | number)[];
+  /** The API joins the path with dots: "amountCents", "destination.iban". */
+  path: string;
   message: string;
 }
 
@@ -26,11 +27,12 @@ export class ApiError extends Error {
     this.details = details;
   }
 
-  /** The message a 400 gave for one field, when the details are zod issues. */
+  /** The message a 400 gave for one field (or a field inside it), when the details are the API's issues. */
   fieldMessage(field: string): string | null {
     if (!Array.isArray(this.details)) return null;
     for (const issue of this.details as Partial<FieldIssue>[]) {
-      if (Array.isArray(issue.path) && issue.path[0] === field && typeof issue.message === "string") return issue.message;
+      if (typeof issue.path !== "string" || typeof issue.message !== "string") continue;
+      if (issue.path === field || issue.path.startsWith(`${field}.`)) return issue.message;
     }
     return null;
   }

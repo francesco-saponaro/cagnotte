@@ -11,6 +11,8 @@ export interface LinkProps extends PropsWithChildren {
   href: string;
   style?: StyleProp<ViewStyle>;
   "aria-label"?: string;
+  /** "page" on the destination the screen is under. */
+  "aria-current"?: "page" | undefined;
   testID?: string;
 }
 

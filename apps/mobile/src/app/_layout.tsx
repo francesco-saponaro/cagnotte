@@ -21,7 +21,7 @@ const nav: Nav = {
   // merge on the web, so the style is flattened first.
   Link: ({ href, children, style, testID, ...rest }) => (
     <Link href={href as never} asChild>
-      <Pressable role="link" aria-label={rest["aria-label"]} style={StyleSheet.flatten(style)} {...(testID ? { testID } : {})}>
+      <Pressable role="link" aria-label={rest["aria-label"]} aria-current={rest["aria-current"]} style={StyleSheet.flatten(style)} {...(testID ? { testID } : {})}>
         {children}
       </Pressable>
     </Link>

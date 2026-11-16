@@ -82,7 +82,7 @@ export function fakeNav(): FakeNav {
       nav.backs += 1;
     },
     Link: ({ href, children, style, testID, ...rest }) => (
-      <Pressable role="link" aria-label={rest["aria-label"]} onPress={() => nav.pushed.push(href)} style={style} {...(testID ? { testID } : {})}>
+      <Pressable role="link" aria-label={rest["aria-label"]} aria-current={rest["aria-current"]} onPress={() => nav.pushed.push(href)} style={style} {...(testID ? { testID } : {})}>
         {children}
       </Pressable>
     ),

@@ -56,13 +56,14 @@ describe("the API client over HTTP", () => {
     expect(error).toMatchObject({ status: 422, code: "rule", message: "only 1,50 € is available" });
   });
 
-  it("keeps the field details of a 400 so a form can show them", async () => {
-    const details = [{ path: ["amountCents"], message: "whole cents" }];
+  it("keeps the field details of a 400 so a form can show them, with the path joined as the API writes it", async () => {
+    const details = [{ path: "amountCents", message: "whole cents" }, { path: "destination.iban", message: "required" }];
     const { fetchFn } = fakeFetch(() => json(400, { error: { code: "invalid", message: "invalid body", details } }));
     const api = apiClientCreator(httpTransportCreator("http://api.test", fetchFn), () => "tok");
     const error = (await api.post("/me/payouts", {}).catch((e: unknown) => e)) as ApiError;
     expect(error.details).toEqual(details);
     expect(error.fieldMessage("amountCents")).toBe("whole cents");
+    expect(error.fieldMessage("destination")).toBe("required");
     expect(error.fieldMessage("method")).toBeNull();
   });
 

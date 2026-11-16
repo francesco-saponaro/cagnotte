@@ -1,16 +1,28 @@
 import type {
   Activation,
+  AuditEntry,
   CashbackDetail,
   CashbackWithOffer,
   Claim,
   ClaimWithOffer,
+  ImportBatch,
+  MarginReport,
+  Merchant,
+  NetworkTransaction,
+  OfferBoost,
   OfferDetail,
   OfferWithMerchant,
+  Overview,
   Page,
   Payout,
+  PayoutWithMember,
+  Proposal,
   PublicUser,
+  ReconciliationReport,
   ReferralsView,
   SignedIn,
+  TransactionDetail,
+  TransactionWithMerchant,
   Wallet,
 } from "@cagnotte/domain";
 
@@ -41,3 +53,17 @@ export type PayoutRow = Serialized<Payout>;
 export type ClaimRow = Serialized<ClaimWithOffer>;
 export type ClaimDetailRow = Serialized<Claim>;
 export type ReferralsRow = Serialized<ReferralsView>;
+
+// The back office.
+export type MerchantRow = Serialized<Merchant>;
+export type BoostRow = Serialized<OfferBoost>;
+export type ImportBatchRow = Serialized<ImportBatch>;
+export type TransactionRow = Serialized<TransactionWithMerchant>;
+export type TransactionDetailRow = Serialized<TransactionDetail>;
+export type TransactionPlainRow = Serialized<NetworkTransaction>;
+export type ProposalRow = Serialized<Proposal>;
+export type PayoutWithMemberRow = Serialized<PayoutWithMember>;
+export type OverviewRow = Serialized<Overview>;
+export type MarginReportRow = Serialized<MarginReport>;
+export type ReconciliationRow = Serialized<ReconciliationReport>;
+export type AuditRow = Serialized<AuditEntry>;
