@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-17
+
+- `docs/architecture.md`: the packages and what each may import, a payout request traced through the server and through the demo, the data model, the state machines, the settlement pipeline as a flow, how demo mode opens PostgreSQL in the page, and the tests by layer.
+- Screenshots of the demo build in `docs/screenshots/`: the wallet, the dashboard, the transactions queue, the support queue, the wallet on a phone.
+- The README in its final form: the live demo and its accounts, both ways to run it, what each role gets, the pipeline, the stack and why each piece is there, the architecture in a paragraph, the tests, what is real and what is simulated, the known limits and what comes next.
+- Published: the public repository and the demo on Netlify.
+
 ## 2026-11-16
 
 - `packages/handlers`: the routes as a table (method, path, least role, schema, use case, success status) with a dispatcher free of any server; the Fastify app registers the table and keeps its bearer hook and error mapping.
