@@ -239,7 +239,7 @@ PGlite's own loader finds its files next to its script with `import.meta.url`, w
 | Layer | Runner | Against | What |
 | --- | --- | --- | --- |
 | `packages/domain` | Vitest, fast-check | in-memory ports | money and rates, the transition tables, every use case, the parsers on the fixtures, matching and computation as properties, the ledger invariants over random histories |
-| `packages/contracts` | Vitest | — | the schemas' coercions and limits |
+| `packages/contracts` | Vitest | nothing | the schemas' coercions and limits |
 | `packages/postgres` | Vitest | PGlite | the seed's determinism and coherence, the adapters through the same contract test as the in-memory ports, the reconciliation sums |
 | `packages/handlers` | Vitest | in-memory ports | the dispatcher's order of refusals and the status table |
 | `apps/api` | Vitest | PGlite with the seed | the access matrix for every route, the member, support and operations workflows, the pipeline's routes |
