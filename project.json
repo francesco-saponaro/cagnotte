@@ -1,0 +1,10 @@
+{
+  "slug": "cagnotte",
+  "name": "Cagnotte",
+  "company": "Joko",
+  "description": "A cashback app and its back office: offers, activations, the settlement of affiliate-network files into a ledger that reconciles to the cent, claims and payouts, with the whole product running in the browser on PGlite for the demo.",
+  "install": "pnpm install --frozen-lockfile",
+  "test": "pnpm test",
+  "build": "pnpm build:web",
+  "dist": "apps/mobile/dist"
+}
