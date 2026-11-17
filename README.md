@@ -8,7 +8,7 @@ The part I care most about is the settlement pipeline: matching a network's tran
 
 ## Live demo
 
-https://cagnotte.netlify.app
+https://cagnotte-francesco-saponaro.netlify.app
 
 The demo is the web export of the app in demo mode: the same route table, use cases, migration and seed run in the browser on PGlite (PostgreSQL compiled to WebAssembly), so what it shows is the real code path with no server behind it. The first sign-in downloads the engine and loads about 17,000 rows, which takes a few seconds; a reload starts the data over. Sign in as Marie to see the member's side, as Sam for the support queue, as Nadia for the whole back office:
 
